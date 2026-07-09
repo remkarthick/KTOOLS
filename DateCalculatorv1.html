@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Date & Time Calculator</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Segoe UI,Arial,sans-serif;
+}
+
+body{
+
+background:linear-gradient(135deg,#1d2671,#c33764);
+min-height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+padding:30px;
+color:white;
+
+}
+
+.card{
+
+width:900px;
+max-width:100%;
+background:rgba(255,255,255,.08);
+backdrop-filter:blur(15px);
+border:1px solid rgba(255,255,255,.15);
+border-radius:20px;
+padding:30px;
+box-shadow:0 20px 60px rgba(0,0,0,.3);
+
+}
+
+h1{
+
+text-align:center;
+margin-bottom:25px;
+font-weight:600;
+
+}
+
+.grid{
+
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:20px;
+
+}
+
+.section{
+
+background:rgba(255,255,255,.06);
+padding:20px;
+border-radius:15px;
+
+}
+
+label{
+
+display:block;
+margin-bottom:8px;
+font-size:14px;
+opacity:.8;
+
+}
+
+input[type=datetime-local]{
+
+width:100%;
+padding:12px;
+border:none;
+border-radius:10px;
+font-size:15px;
+
+}
+
+.buttons{
+
+display:flex;
+flex-wrap:wrap;
+gap:10px;
+margin-top:18px;
+
+}
+
+button{
+
+border:none;
+padding:12px 18px;
+border-radius:10px;
+cursor:pointer;
+background:#00b4ff;
+color:white;
+font-weight:600;
+transition:.25s;
+
+}
+
+button:hover{
+
+transform:translateY(-2px);
+background:#0095d6;
+
+}
+
+.results{
+
+margin-top:25px;
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+gap:15px;
+
+}
+
+.box{
+
+background:rgba(255,255,255,.08);
+padding:18px;
+border-radius:15px;
+
+}
+
+.box h3{
+
+font-size:14px;
+opacity:.75;
+margin-bottom:8px;
+
+}
+
+.value{
+
+font-size:24px;
+font-weight:bold;
+
+}
+
+.extra{
+
+margin-top:20px;
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+gap:15px;
+
+}
+
+.extra div{
+
+background:rgba(255,255,255,.08);
+padding:15px;
+border-radius:12px;
+line-height:1.7;
+
+}
+
+.footer{
+
+margin-top:20px;
+text-align:center;
+opacity:.75;
+font-size:13px;
+
+}
+
+@media(max-width:700px){
+
+.grid{
+
+grid-template-columns:1fr;
+
+}
+
+}
+
+</style>
+
+</head>
+<body>
+
+<div class="card">
+
+<h1>📅 Advanced Date & Time Calculator</h1>
+
+<div class="grid">
+
+<div class="section">
+
+<label>Start Date & Time</label>
+
+<input id="start" type="datetime-local">
+
+<div class="buttons">
+<button onclick="nowStart()">Now</button>
+</div>
+
+</div>
+
+<div class="section">
+
+<label>End Date & Time</label>
+
+<input id="end" type="datetime-local">
+
+<div class="buttons">
+<button onclick="nowEnd()">Now</button>
+</div>
+
+</div>
+
+</div>
+
+<div class="buttons">
+
+<button onclick="calculate()">Calculate</button>
+<button onclick="swap()">Swap</button>
+<button onclick="copyResult()">Copy</button>
+
+<label style="display:flex;align-items:center;gap:8px;">
+<input type="checkbox" id="live">
+Live Update
+</label>
+
+</div>
+
+<div class="results">
+
+<div class="box">
+<h3>Difference</h3>
+<div class="value" id="breakdown">-</div>
+</div>
+
+<div class="box">
+<h3>Total Days</h3>
+<div class="value" id="days">-</div>
+</div>
+
+<div class="box">
+<h3>Total Hours</h3>
+<div class="value" id="hours">-</div>
+</div>
+
+<div class="box">
+<h3>Total Minutes</h3>
+<div class="value" id="minutes">-</div>
+</div>
+
+<div class="box">
+<h3>Total Seconds</h3>
+<div class="value" id="seconds">-</div>
+</div>
+
+</div>
+
+<div class="extra">
+
+<div id="info1"></div>
+
+<div id="info2"></div>
+
+</div>
+
+<div class="footer">
+
+Advanced Date Calculator • Single HTML File
+
+</div>
+
+</div>
+
+<script>
+
+const start=document.getElementById("start");
+const end=document.getElementById("end");
+
+function formatInput(d){
+
+let offset=d.getTimezoneOffset()*60000;
+return new Date(d-offset).toISOString().slice(0,16);
+
+}
+
+start.value=formatInput(new Date());
+
+let later=new Date();
+later.setHours(later.getHours()+1);
+end.value=formatInput(later);
+
+function nowStart(){
+
+start.value=formatInput(new Date());
+calculate();
+
+}
+
+function nowEnd(){
+
+end.value=formatInput(new Date());
+calculate();
+
+}
+
+function swap(){
+
+let t=start.value;
+start.value=end.value;
+end.value=t;
+calculate();
+
+}
+
+function weekday(d){
+
+return d.toLocaleDateString(undefined,{weekday:"long"});
+
+}
+
+function leap(y){
+
+return (y%4==0 && y%100!=0)||y%400==0;
+
+}
+
+function businessDays(a,b){
+
+let count=0;
+
+let d=new Date(Math.min(a,b));
+
+let e=new Date(Math.max(a,b));
+
+while(d<=e){
+
+let day=d.getDay();
+
+if(day!=0 && day!=6) count++;
+
+d.setDate(d.getDate()+1);
+
+}
+
+return count-1;
+
+}
+
+function isoWeek(date){
+
+date=new Date(date);
+
+date.setHours(0,0,0);
+
+date.setDate(date.getDate()+3-(date.getDay()+6)%7);
+
+let week1=new Date(date.getFullYear(),0,4);
+
+return 1+Math.round(((date-week1)/86400000-3+(week1.getDay()+6)%7)/7);
+
+}
+
+function relative(ms){
+
+let sec=Math.abs(ms)/1000;
+
+let future=ms>0;
+
+if(sec<60) return future?"In a few seconds":"A few seconds ago";
+
+let min=sec/60;
+
+if(min<60) return future?"In "+Math.floor(min)+" mins":Math.floor(min)+" mins ago";
+
+let hr=min/60;
+
+if(hr<24) return future?"In "+Math.floor(hr)+" hrs":Math.floor(hr)+" hrs ago";
+
+let day=hr/24;
+
+return future?"In "+Math.floor(day)+" days":Math.floor(day)+" days ago";
+
+}
+
+function calculate(){
+
+let s=new Date(start.value);
+
+let e=new Date(end.value);
+
+let diff=e-s;
+
+let abs=Math.abs(diff);
+
+let days=Math.floor(abs/86400000);
+
+let hrs=Math.floor(abs%86400000/3600000);
+
+let mins=Math.floor(abs%3600000/60000);
+
+let secs=Math.floor(abs%60000/1000);
+
+document.getElementById("breakdown").innerHTML=
+
+`${days}d ${hrs}h ${mins}m ${secs}s`;
+
+document.getElementById("days").innerHTML=(abs/86400000).toFixed(4);
+
+document.getElementById("hours").innerHTML=(abs/3600000).toFixed(2);
+
+document.getElementById("minutes").innerHTML=(abs/60000).toFixed(2);
+
+document.getElementById("seconds").innerHTML=Math.floor(abs/1000);
+
+document.getElementById("info1").innerHTML=`
+
+<b>Start</b><br>
+
+Weekday : ${weekday(s)}<br>
+
+Leap Year : ${leap(s.getFullYear())?"Yes":"No"}<br>
+
+ISO Week : ${isoWeek(s)}
+
+`;
+
+document.getElementById("info2").innerHTML=`
+
+<b>Extra</b><br>
+
+Business Days : ${businessDays(s,e)}<br>
+
+${diff>=0?"Countdown":"Elapsed"}<br>
+
+${relative(diff)}
+
+`;
+
+}
+
+calculate();
+
+setInterval(()=>{
+
+if(document.getElementById("live").checked)
+
+calculate();
+
+},1000);
+
+function copyResult(){
+
+let text=`
+Difference : ${document.getElementById("breakdown").innerText}
+
+Days : ${document.getElementById("days").innerText}
+
+Hours : ${document.getElementById("hours").innerText}
+
+Minutes : ${document.getElementById("minutes").innerText}
+
+Seconds : ${document.getElementById("seconds").innerText}
+`;
+
+navigator.clipboard.writeText(text);
+
+alert("Copied!");
+
+}
+
+</script>
+
+</body>
+</html>

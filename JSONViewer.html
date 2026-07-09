@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>JSON Visualizer</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.17/themes/default/style.min.css">
+<style>
+    :root { --bg: #1e1e1e; --panel: #252526; --accent: #007acc; --text: #d4d4d4; }
+    [data-theme="light"] { --bg: #f8f9fa; --panel: #ffffff; --accent: #0066cc; --text: #212529; }
+    * { box-sizing: border-box; }
+    html, body { margin:0; height:100%; overflow:hidden; font-family:'Segoe UI',Arial,sans-serif; background:var(--bg); color:var(--text); }
+   
+    #toolbar { height:60px; background:#1f1f1f; display:flex; align-items:center; padding:0 15px; gap:12px; border-bottom:1px solid #333; z-index:10; }
+    button { padding:8px 14px; background:var(--accent); color:white; border:none; border-radius:4px; cursor:pointer; }
+    button:hover { background:#0099ff; }
+    .toggle-btn { background:#444; font-size:13px; padding:6px 12px; min-width:85px; text-align:center; }
+    .toggle-btn.active { background:#007acc; }
+    #main { display:flex; height:calc(100% - 60px); overflow:hidden; }
+    .panel { display:flex; flex-direction:column; border-right:1px solid #444; flex:1; min-width:220px; }
+    .panel-header { padding:10px 15px; background:#2d2d2d; display:flex; justify-content:space-between; align-items:center; font-weight:600; }
+    .panel-content { flex:1; overflow:auto; background:var(--panel); position:relative; }
+    .mermaid-container { width:100%; height:100%; overflow:auto; background:#1e1e1e; }
+    .mermaid { padding:30px; transform-origin:top left; transition:transform 0.1s; }
+   
+    input { background:#3c3c3c; color:white; border:1px solid #555; padding:6px 8px; border-radius:4px; width:200px; }
+    .status { padding:5px 12px; border-radius:12px; font-size:13px; font-weight:bold; }
+    .valid { background:#2e7d32; }
+    .invalid { background:#c62828; }
+    .resize-handle { width:6px; background:#555; cursor:col-resize; }
+    #flowchart {
+    position: relative;
+    overflow: hidden;
+    cursor: grab;
+}
+
+#flowchart.dragging {
+    cursor: grabbing;
+}
+
+#mermaid-chart {
+    position: absolute;
+    left: 0;
+    top: 0;
+    user-select: none;
+}
+
+.drag-active {
+    background: #007acc;
+}
+
+.select-active {
+    background: #4caf50;
+}
+</style>
+</head>
+<body>
+<div id="toolbar">
+    <button onclick="renderAll()">⟳ Render</button>
+    <button onclick="toggleTheme()">☀️ / 🌙</button>
+   
+    <span style="margin-left:auto; margin-right:10px;">Panels:</span>
+    <button class="toggle-btn active" id="btn-editor" onclick="togglePanel('editor-panel')">Editor</button>
+    <button class="toggle-btn active" id="btn-tree" onclick="togglePanel('tree-panel')">Tree</button>
+    <button class="toggle-btn active" id="btn-flow" onclick="togglePanel('flow-panel')">Flow</button>
+   
+    <div id="status" class="status" style="margin-left:auto">Ready</div>
+</div>
+<div id="main">
+    <div class="panel" id="editor-panel">
+        <div class="panel-header">JSON Editor</div>
+        <div class="panel-content" id="editor"></div>
+    </div>
+    <div class="resize-handle" data-panel="editor-panel"></div>
+    <div class="panel" id="tree-panel">
+        <div class="panel-header">
+            Tree View
+            <input type="text" id="treePath" placeholder="$.company.name" onkeyup="if(event.key==='Enter') applyTreeFilter()">
+        </div>
+        <div class="panel-content" id="tree"></div>
+    </div>
+    <div class="resize-handle" data-panel="tree-panel"></div>
+    <div class="panel" id="flow-panel">
+        <div class="panel-header">
+            Flowchart View
+            <input type="text" id="flowPath" placeholder="$.company.name" onkeyup="if(event.key==='Enter') applyFlowFilter()">
+            <div style="display:flex;gap:4px;">
+    <button id="dragBtn" onclick="setFlowMode('drag')" title="Drag Mode">🖐</button>
+
+    <button onclick="zoomIn()">🔍 +</button>
+    <button onclick="zoomOut()">🔍 -</button>
+    <button onclick="resetZoom()">Reset</button>
+</div>
+        </div>
+        <div class="panel-content">
+            <div class="mermaid-container" id="flowchart">
+                <div id="mermaid-chart" class="mermaid"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.17/jstree.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.3/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+<script>
+
+    let flowMode = "drag";
+
+let translateX = 0;
+let translateY = 0;
+
+let isDragging = false;
+let dragStartX = 0;
+let dragStartY = 0;
+// Global variables
+let editor, currentJson = null;
+let currentTheme = 'dark';
+let zoomLevel = 1.0;
+
+// Mermaid init
+mermaid.initialize({ startOnLoad: false, theme: 'dark', flowchart: { useMaxWidth: false } });
+
+require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' }});
+
+require(['vs/editor/editor.main'], () => {
+    const defaultJSON = {
+        company: {
+            name: "ABC Corp",
+            founded: 2015,
+            active: true,
+            employees: [
+                { name: "John Doe", role: "Engineer", skills: ["JS", "Python"] },
+                { name: "Jane Smith", role: "Designer", skills: ["Figma", "UI"] }
+            ],
+            address: { city: "London", country: "UK" }
+        }
+    };
+    
+    editor = monaco.editor.create(document.getElementById('editor'), {
+        value: JSON.stringify(defaultJSON, null, 4),
+        language: 'json',
+        theme: 'vs-dark',
+        automaticLayout: true,
+        fontSize: 14
+    });
+    
+    setTimeout(() => {
+        currentJson = defaultJSON;
+        renderAll();
+    }, 800);
+});
+
+function renderAll() {
+    if (!editor) return;
+    try {
+        currentJson = JSON.parse(editor.getValue());
+        document.getElementById('status').textContent = "✓ Valid JSON";
+        document.getElementById('status').className = "status valid";
+        renderTree(currentJson);
+        renderMermaidFlow(currentJson);
+    } catch(e) {
+        document.getElementById('status').textContent = "✕ Invalid JSON";
+        document.getElementById('status').className = "status invalid";
+    }
+}
+
+// Simple JSONPath
+function getSubtree(json, path) {
+    if (!path || path === "$") return json;
+    try {
+        let parts = path.replace(/^\$\.?/, '').split('.');
+        let current = json;
+        for (let part of parts) {
+            if (part.includes('[')) {
+                const key = part.split('[')[0];
+                const indexMatch = part.match(/\d+/);
+                const index = indexMatch ? parseInt(indexMatch[0]) : 0;
+                if (key) current = current[key];
+                if (current) current = current[index];
+            } else {
+                current = current[part];
+            }
+            if (current === undefined) return json;
+        }
+        return current;
+    } catch (e) { return json; }
+}
+
+// Tree View
+function buildTree(key, obj, path = "$") {
+    if (typeof obj !== "object" || obj === null) {
+        return { text: `${key} <span style="color:#9cdcfe">: ${obj}</span>`, data: { path } };
+    }
+    let node = { text: key, state: { opened: false }, data: { path } };
+    node.children = [];
+    if (Array.isArray(obj)) {
+        obj.forEach((item, i) => node.children.push(buildTree(`[${i}]`, item, `${path}[${i}]`)));
+    } else {
+        Object.keys(obj).forEach(k => node.children.push(buildTree(k, obj[k], `${path}.${k}`)));
+    }
+    return node;
+}
+
+function renderTree(json, path = "$") {
+    const target = getSubtree(json, path);
+    const rootLabel = path === "$" ? "ROOT" : path.split('.').pop() || "Result";
+    $('#tree').jstree("destroy");
+    $('#tree').jstree({ core: { data: [buildTree(rootLabel, target, path)] } });
+}
+
+function applyTreeFilter() {
+    const path = document.getElementById('treePath').value.trim();
+    renderTree(currentJson, path || "$");
+}
+
+// Flowchart
+async function renderMermaidFlow(json, path = "$") {
+    const container = document.getElementById("flowchart");
+    container.innerHTML = `<div id="mermaid-chart" class="mermaid"></div>`;
+   
+    try {
+        const target = getSubtree(json, path);
+        let lines = [], counter = 0;
+        
+        function traverse(obj, parentId = "root", label = "") {
+            if (counter > 80) return;
+            const id = "n" + counter++;
+            if (typeof obj !== "object" || obj === null) {
+                lines.push(` ${id}["${label}: ${String(obj).replace(/"/g, '\\"')}"]`);
+            } else {
+                lines.push(` ${id}["${label || (Array.isArray(obj) ? "Array" : "Object")}"]`);
+                if (Array.isArray(obj)) {
+                    obj.forEach((item, i) => traverse(item, id, `[${i}]`));
+                } else {
+                    Object.keys(obj).forEach(k => traverse(obj[k], id, k));
+                }
+            }
+            if (parentId !== "root") lines.push(` ${parentId} --> ${id}`);
+        }
+        
+        lines.push("flowchart TD");
+        traverse(target, "root", path === "$" ? "ROOT" : path.split('.').pop() || "Result");
+        
+        const chartDiv = document.getElementById("mermaid-chart");
+        chartDiv.textContent = lines.join("\n");
+       
+        await mermaid.run({ nodes: [chartDiv] });
+        zoomLevel = 1;
+
+translateX = 0;
+translateY = 0;
+
+updateZoom();
+    } catch(e) {
+        console.error(e);
+        container.innerHTML = `<div style="color:#ff9800;padding:20px;">Flowchart rendering failed.</div>`;
+    }
+}
+
+
+function setFlowMode(mode) {
+
+    flowMode = mode;
+
+    document.getElementById("dragBtn")
+        .classList.toggle("drag-active", mode === "drag");
+
+
+
+    const container = document.getElementById("flowchart");
+
+    if (mode === "drag") {
+        container.style.cursor = "grab";
+        container.style.pointerEvents = "auto";
+    } else {
+        container.style.cursor = "default";
+    }
+}
+function updateZoom() {
+    const chart = document.getElementById("mermaid-chart");
+
+    if (!chart) return;
+
+    chart.style.transform =
+        `translate(${translateX}px, ${translateY}px) scale(${zoomLevel})`;
+
+    chart.style.transformOrigin = "top left";
+}
+
+function zoomIn()  { zoomLevel = Math.min(zoomLevel + 0.15, 4); updateZoom(); }
+function zoomOut() { zoomLevel = Math.max(zoomLevel - 0.15, 0.3); updateZoom(); }
+function resetZoom() { zoomLevel = 1; updateZoom(); }
+
+function applyFlowFilter() {
+    const path = document.getElementById('flowPath').value.trim();
+    renderMermaidFlow(currentJson, path || "$");
+}
+
+// Panel toggle
+function togglePanel(panelId) {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+    const btn = document.getElementById('btn-' + panelId.split('-')[0]);
+    const isHidden = panel.style.display === "none";
+    panel.style.display = isHidden ? "flex" : "none";
+    if (btn) btn.classList.toggle('active', isHidden);
+}
+
+// Theme
+function toggleTheme() {
+    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    if (editor) editor.updateOptions({ theme: currentTheme === 'dark' ? 'vs-dark' : 'vs' });
+}
+
+// Resizable panels
+document.querySelectorAll('.resize-handle').forEach(handle => {
+    handle.addEventListener('mousedown', (e) => {
+        const prevPanel = handle.previousElementSibling;
+        if (!prevPanel) return;
+        const startX = e.clientX;
+        const startWidth = prevPanel.offsetWidth;
+        const onMove = (ev) => {
+            const delta = ev.clientX - startX;
+            const newWidth = Math.max(200, startWidth + delta);
+            prevPanel.style.flex = `0 0 ${newWidth}px`;
+        };
+        const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+});
+
+
+const flowContainer = document.getElementById("flowchart");
+
+flowContainer.addEventListener("mousedown", (e) => {
+
+    if (flowMode !== "drag") return;
+
+    isDragging = true;
+
+    flowContainer.classList.add("dragging");
+
+    dragStartX = e.clientX - translateX;
+    dragStartY = e.clientY - translateY;
+});
+
+document.addEventListener("mousemove", (e) => {
+
+    if (!isDragging) return;
+
+    translateX = e.clientX - dragStartX;
+    translateY = e.clientY - dragStartY;
+
+    updateZoom();
+});
+
+document.addEventListener("mouseup", () => {
+
+    isDragging = false;
+
+    flowContainer.classList.remove("dragging");
+});
+</script>
+</body>
+</html>
