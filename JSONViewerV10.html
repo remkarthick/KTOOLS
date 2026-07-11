@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON Visualizer with Canvas Export</title>
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- jsTree Theme -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.17/themes/default/style.min.css">
+<style>
+    :root, [data-bs-theme="light"] {
+        --bg: #f5f5f7;
+        --panel: #ffffff;
+        --accent: #0d6efd;
+        --text: #212529;
+        --text-secondary: #6c757d;
+        --border: #dee2e6;
+        --success: #198754;
+        --danger: #dc3545;
+        --handle: #dee2e6;
+        --handle-hover: #9fa6b2; /* Pleasant standard neutral grey */
+    }
+    [data-bs-theme="dark"] {
+        --bg: #1a1a1c;
+        --panel: #212529;
+        --accent: #0d6efd;
+        --text: #f8f9fa;
+        --text-secondary: #adb5bd;
+        --border: #495057;
+        --success: #198754;
+        --danger: #dc3545;
+        --handle: #343a40;
+        --handle-hover: #6c757d; /* Pleasant standard neutral grey */
+    }
+
+    html, body { 
+        margin: 0; 
+        height: 100vh; 
+        overflow: hidden; 
+        background: var(--bg); 
+        color: var(--text); 
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    
+    #toolbar {
+        height: 60px;
+        background: var(--panel);
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        gap: 12px;
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    #main { 
+        display: flex; 
+        height: calc(100vh - 60px); 
+        overflow: hidden; 
+    }
+    
+    .panel { 
+        display: flex; 
+        flex-direction: column; 
+        flex: 1; 
+        min-width: 250px;
+        background: var(--panel);
+    }
+    
+    .panel-header {
+        padding: 10px 16px;
+        background: var(--panel);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-bottom: 1px solid var(--border);
+        font-weight: 600;
+        font-size: 14px;
+    }
+    
+    .panel-content { 
+        flex: 1; 
+        overflow: auto; 
+        background: var(--panel); 
+        position: relative; 
+    }
+
+    .resize-handle {
+        width: 8px;
+        background-color: var(--handle);
+        cursor: col-resize;
+        flex-shrink: 0;
+        transition: background-color 0.2s ease;
+        z-index: 10;
+    }
+    .resize-handle:hover, .resize-handle:active {
+        background-color: var(--handle-hover);
+    }
+
+    #flowchart {
+        width: 100%;
+        height: 100%;
+        background: var(--bg);
+    }
+
+    [data-bs-theme="dark"] .jstree-default .jstree-anchor {
+        color: var(--text) !important;
+    }
+    [data-bs-theme="dark"] .jstree-default .jstree-hovered {
+        background: rgba(255,255,255,0.1) !important;
+    }
+    [data-bs-theme="dark"] .jstree-default .jstree-clicked {
+        background: rgba(13, 110, 253, 0.4) !important;
+    }
+
+    .copy-field {
+        width: 100%;
+        height: 140px;
+        font-family: var(--bs-font-monospace);
+        font-size: 13px;
+        resize: vertical;
+    }
+</style>
+</head>
+<body>
+<div id="toolbar">
+    <button class="btn btn-primary btn-sm fw-medium px-3" onclick="renderAll()">⟳ Render All</button>
+    <button class="btn btn-outline-secondary btn-sm" onclick="toggleTheme()" title="Toggle Theme">☀️ / 🌙</button>
+    
+    <div class="ms-auto d-flex align-items-center gap-2">
+        <span class="text-secondary small fw-medium me-2">Panels</span>
+        <div class="btn-group" role="group">
+            <input type="checkbox" class="btn-check" id="toggle-editor" checked autocomplete="off" onchange="togglePanel('editor-panel')">
+            <label class="btn btn-outline-primary btn-sm" for="toggle-editor">Editor</label>
+            
+            <input type="checkbox" class="btn-check" id="toggle-tree" checked autocomplete="off" onchange="togglePanel('tree-panel')">
+            <label class="btn btn-outline-primary btn-sm" for="toggle-tree">Tree</label>
+            
+            <input type="checkbox" class="btn-check" id="toggle-flow" checked autocomplete="off" onchange="togglePanel('flow-panel')">
+            <label class="btn btn-outline-primary btn-sm" for="toggle-flow">Flow</label>
+        </div>
+    </div>
+    
+    <span id="status" class="badge bg-success ms-3 px-3 py-2">Ready</span>
+</div>
+
+<div id="main">
+    <!-- Editor Panel -->
+    <div class="panel" id="editor-panel">
+        <div class="panel-header justify-content-between">
+            <span>JSON Editor</span>
+            <button class="btn btn-outline-secondary btn-sm py-1 px-3" onclick="formatJSON()">Format</button>
+        </div>
+        <div class="panel-content" id="editor"></div>
+    </div>
+    <div class="resize-handle" id="handle-editor"></div>
+
+    <!-- Tree Panel -->
+    <div class="panel" id="tree-panel">
+        <div class="panel-header flex-wrap">
+            <span>Tree View</span>
+            <select id="treePathSelect" class="form-select form-select-sm" style="max-width: 130px;" onchange="applySelectedPath('tree')"></select>
+            <input type="text" id="treePath" class="form-control form-control-sm" placeholder="$" style="flex:1; min-width:120px;" onkeyup="if(event.key==='Enter') applyTreeFilter()">
+            <button class="btn btn-secondary btn-sm" onclick="showJsonPathHelper('tree')">Helper</button>
+            
+            <div class="form-check form-switch ms-1 mb-0" title="Track to Root">
+                <input class="form-check-input" type="checkbox" id="trackToRootTree" onchange="applyTreeFilter()">
+            </div>
+        </div>
+        <div class="panel-content p-2" id="tree"></div>
+        <div class="p-3 border-top" style="background: var(--panel);">
+            <strong class="d-block small mb-2 text-secondary">Selected Node Content</strong>
+            <textarea id="treeSelectedContent" class="form-control copy-field" readonly></textarea>
+            <button id="copyBtn" class="btn btn-primary btn-sm w-100 mt-2" onclick="copySelectedContent()">📋 Copy Content</button>
+        </div>
+    </div>
+    <div class="resize-handle" id="handle-tree"></div>
+
+    <!-- Flowchart Panel -->
+    <div class="panel" id="flow-panel">
+        <div class="panel-header flex-wrap gap-2">
+            <span>Flowchart View</span>
+            <select id="flowPathSelect" class="form-select form-select-sm" style="max-width: 120px;" onchange="applySelectedPath('flow')"></select>
+            <input type="text" id="flowPath" class="form-control form-control-sm" placeholder="$" style="max-width: 150px;" onkeyup="if(event.key==='Enter') applyFlowFilter()">
+            <button class="btn btn-secondary btn-sm" onclick="showJsonPathHelper('flow')">Helper</button>
+            
+            <div class="form-check form-switch mb-0" title="Track to Root">
+                <input class="form-check-input" type="checkbox" id="trackToRootFlow" onchange="applyFlowFilter()">
+            </div>
+            
+            <button class="btn btn-success btn-sm fw-medium ms-auto" onclick="takeFlowchartScreenshot()">📸 Screenshot</button>
+            
+            <div class="btn-group">
+                <button class="btn btn-outline-secondary btn-sm fw-bold" onclick="zoomOut()">－</button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="resetZoom()">Reset</button>
+                <button class="btn btn-outline-secondary btn-sm fw-bold" onclick="zoomIn()">＋</button>
+            </div>
+        </div>
+        <div class="panel-content">
+            <div id="flowchart"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Helper Modal -->
+<div class="modal fade" id="pathHelperModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h3 class="modal-title fw-bold">JSONPath Helper</h3>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-pills mb-4 gap-2" id="helperTabs">
+                    <li class="nav-item">
+                        <button class="nav-link active" onclick="switchHelperTab(0)">Simple Paths</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="switchHelperTab(1)">Dynamic Filters</button>
+                    </li>
+                </ul>
+                <div id="tabContent"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.17/jstree.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/standalone/umd/vis-network.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+<script>
+let editor, currentJson = null, network = null;
+let currentTheme = 'dark';
+let currentHelperContext = 'tree';
+
+require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' }});
+require(['vs/editor/editor.main'], () => {
+    const defaultJSON = {
+        company: {
+            name: "ABC Corp",
+            employees: [
+                { name: "John Doe", email: "john.doe@example.com", role: "Engineer", active: true },
+                { name: "Jane Smith", email: "jane@example.com", role: "Designer", active: false },
+                { name: "Paul Brown", email: "paul@b.com", role: "Manager", active: true }
+            ],
+            address: { city: "New York", country: "USA" }
+        }
+    };
+    
+    editor = monaco.editor.create(document.getElementById('editor'), {
+        value: JSON.stringify(defaultJSON, null, 4),
+        language: 'json',
+        theme: 'vs-dark',
+        automaticLayout: true,
+        fontSize: 14,
+        minimap: { enabled: true },
+        scrollBeyondLastLine: false
+    });
+    
+    setTimeout(() => {
+        currentJson = defaultJSON;
+        renderAll();
+    }, 500);
+});
+
+function formatJSON() {
+    try {
+        const parsed = JSON.parse(editor.getValue());
+        editor.setValue(JSON.stringify(parsed, null, 4));
+    } catch(e) { 
+        alert("Invalid JSON format."); 
+    }
+}
+
+function queryJson(obj, expr, returnSkeleton = false) {
+    if (!expr || expr === "$" || expr === "") return returnSkeleton ? obj : obj;
+    try {
+        if (expr.includes('[?(')) return advancedFilter(obj, expr, returnSkeleton);
+        if (expr.includes('..')) return deepSearch(obj, expr, returnSkeleton);
+        return getByPath(obj, expr, returnSkeleton);
+    } catch(e) {
+        return null;
+    }
+}
+
+function getByPath(obj, path, returnSkeleton = false) {
+    const parts = path.replace(/^\$\.?/, '').split(/\.|\[(\d+)\]/).filter(Boolean);
+    if (!returnSkeleton) {
+        let current = obj;
+        for (let part of parts) {
+            if (current === undefined || current === null) return null;
+            current = current[part];
+        }
+        return current;
+    } else {
+        function recursePath(currentObj, depth) {
+            if (depth === parts.length) return currentObj;
+            if (currentObj === undefined || currentObj === null) return undefined;
+            const part = parts[depth];
+            const nextObj = currentObj[part];
+            const nextSkel = recursePath(nextObj, depth + 1);
+            if (nextSkel !== undefined) {
+                let skel = Array.isArray(currentObj) ? [] : {};
+                skel[part] = nextSkel;
+                return skel;
+            }
+            return undefined;
+        }
+        let skel = recursePath(obj, 0);
+        return skel !== undefined ? skel : null;
+    }
+}
+
+function deepSearch(obj, expr, returnSkeleton = false) {
+    const keyMatch = expr.match(/\.\.(\w+)/);
+    if (!keyMatch) return null;
+    const key = keyMatch[1];
+    if (!returnSkeleton) {
+        const results = [];
+        function recurse(item) {
+            if (typeof item !== 'object' || item === null) return;
+            if (Array.isArray(item)) item.forEach(recurse);
+            else {
+                if (item[key] !== undefined) results.push(item[key]);
+                Object.values(item).forEach(recurse);
+            }
+        }
+        recurse(obj);
+        return results.length === 0 ? null : (results.length === 1 ? results[0] : results);
+    } else {
+        function recurseSkel(item) {
+            if (typeof item !== 'object' || item === null) return undefined;
+            let isMatch = false;
+            let skel = Array.isArray(item) ? [] : {};
+            if (Array.isArray(item)) {
+                item.forEach((v, i) => {
+                    let childSkel = recurseSkel(v);
+                    if (childSkel !== undefined) {
+                        skel[i] = childSkel;
+                        isMatch = true;
+                    }
+                });
+            } else {
+                Object.entries(item).forEach(([k, v]) => {
+                    if (k === key) {
+                        skel[k] = v;
+                        isMatch = true;
+                    } else {
+                        let childSkel = recurseSkel(v);
+                        if (childSkel !== undefined) {
+                            skel[k] = childSkel;
+                            isMatch = true;
+                        }
+                    }
+                });
+            }
+            return isMatch ? skel : undefined;
+        }
+        let skeleton = recurseSkel(obj);
+        return skeleton !== undefined ? skeleton : null;
+    }
+}
+
+function advancedFilter(obj, expr, returnSkeleton = false) {
+    const match = expr.match(/(.*?)\[\?\((.*?)\)\]/);
+    if (!match) return obj;
+    const basePath = match[1].trim();
+    const filter = match[2].trim();
+    let deep = basePath.includes('..');
+    
+    const evaluate = (item) => {
+        if (typeof item !== 'object' || item === null) return false;
+        const parts = filter.split('==');
+        if (parts.length !== 2) return false;
+        const keyPart = parts[0].trim().replace('@.', '').replace('@.*', '');
+        const targetValue = parts[1].trim().replace(/['"]/g, '');
+        return Object.entries(item).some(([k, v]) =>
+            (k === keyPart || keyPart === '*') && String(v) === targetValue
+        );
+    };
+    
+    if (!returnSkeleton) {
+        const results = [];
+        function recurse(item) {
+            if (typeof item !== 'object' || item === null) return;
+            if (evaluate(item)) results.push(item);
+            if (Array.isArray(item)) item.forEach(v => recurse(v));
+            else Object.values(item).forEach(v => recurse(v));
+        }
+        if (deep) recurse(obj);
+        else {
+            let target = getByPath(obj, basePath, false);
+            if (Array.isArray(target)) target.forEach(v => { if (evaluate(v)) results.push(v); });
+            else if (target && typeof target === 'object') if (evaluate(target)) results.push(target);
+        }
+        return results.length === 0 ? null : (results.length === 1 ? results[0] : results);
+    } else {
+        function filterSubtree(targetObj) {
+            function recurseDeep(item) {
+                if (evaluate(item)) return item;
+                if (typeof item !== 'object' || item === null) return undefined;
+                let skel = Array.isArray(item) ? [] : {};
+                let isMatch = false;
+                Object.keys(item).forEach(k => {
+                    let child = recurseDeep(item[k]);
+                    if (child !== undefined) {
+                        skel[k] = child;
+                        isMatch = true;
+                    }
+                });
+                return isMatch ? skel : undefined;
+            }
+            return recurseDeep(targetObj);
+        }
+        if (deep) return filterSubtree(obj) || null;
+        const parts = basePath.replace(/^\$\.?/, '').split(/\.|\[(\d+)\]/).filter(Boolean);
+        function recursePath(currentObj, depth) {
+            if (depth === parts.length) return filterSubtree(currentObj);
+            if (!currentObj) return undefined;
+            const part = parts[depth];
+            const nextObj = currentObj[part];
+            const filteredNext = recursePath(nextObj, depth + 1);
+            if (filteredNext !== undefined) {
+                let skel = Array.isArray(currentObj) ? [] : {};
+                skel[part] = filteredNext;
+                return skel;
+            }
+            return undefined;
+        }
+        return recursePath(obj, 0) || null;
+    }
+}
+
+function collectPaths(obj, prefix = "$", paths = new Set()) {
+    paths.add(prefix);
+    if (typeof obj !== 'object' || obj === null) return paths;
+    if (Array.isArray(obj)) {
+        obj.forEach((item, i) => collectPaths(item, `${prefix}[${i}]`, paths));
+    } else {
+        Object.keys(obj).forEach(key => collectPaths(obj[key], `${prefix}.${key}`, paths));
+    }
+    return paths;
+}
+
+function populatePathDropdowns() {
+    if (!currentJson) return;
+    const paths = Array.from(collectPaths(currentJson)).sort((a,b) => a.length - b.length);
+    ['tree', 'flow'].forEach(view => {
+        const select = document.getElementById(view + 'PathSelect');
+        select.innerHTML = '<option value="$">$ (root)</option>';
+        paths.slice(0, 40).forEach(p => {
+            if(p === "$") return;
+            const opt = document.createElement('option');
+            opt.value = p;
+            opt.textContent = p.length > 50 ? p.substring(0,47)+'...' : p;
+            select.appendChild(opt);
+        });
+    });
+}
+
+function renderTree(json, path = "$") {
+    const useRoot = document.getElementById('trackToRootTree').checked;
+    let target = queryJson(json, path, useRoot);
+    if (target === null) target = path !== "$" ? { "Message": "No matches" } : json;
+    
+    $('#tree').jstree("destroy").jstree({
+        core: { data: [buildTreeNode("Root", target, "$")] }
+    }).on("select_node.jstree", (e, data) => {
+        document.getElementById('treeSelectedContent').value = JSON.stringify(data.node.original.rawValue || {}, null, 2);
+    });
+}
+
+function buildTreeNode(key, obj, fullPath) {
+    const node = { text: key, state: { opened: true }, fullPath, rawValue: obj };
+    if (typeof obj !== "object" || obj === null) {
+        node.text = `${key}: <span class="text-info">${obj}</span>`;
+        return node;
+    }
+    node.children = Object.keys(obj).map(k => {
+        const isArr = Array.isArray(obj);
+        return buildTreeNode(isArr ? `[${k}]` : k, obj[k], isArr ? `${fullPath}[${k}]` : `${fullPath}.${k}`);
+    });
+    return node;
+}
+
+/* Flowchart Generator Engine */
+function renderVisNetworkFlow(json, path = "$") {
+    const container = document.getElementById("flowchart");
+    const useRoot = document.getElementById('trackToRootFlow').checked;
+    let target = queryJson(json, path, useRoot) || json;
+
+    let nodesArray = [];
+    let edgesArray = [];
+    let counter = 0;
+
+    function traverse(obj, parentId = null, label = "") {
+        if (counter > 250) return; 
+        const id = "n" + counter++;
+        let displayLabel = String(label);
+
+        if (typeof obj !== "object" || obj === null) {
+            displayLabel = displayLabel ? `${displayLabel}: ${obj}` : String(obj);
+            nodesArray.push({ id, label: displayLabel, shape: 'box' });
+        } else {
+            displayLabel = displayLabel || (Array.isArray(obj) ? "Array" : "Object");
+            nodesArray.push({ id, label: displayLabel, shape: 'ellipse' });
+            Object.keys(obj).forEach(k => traverse(obj[k], id, Array.isArray(obj) ? `[${k}]` : k));
+        }
+        if (parentId) edgesArray.push({ from: parentId, to: id });
+    }
+
+    traverse(target, null, "ROOT");
+
+    const data = { nodes: new vis.DataSet(nodesArray), edges: new vis.DataSet(edgesArray) };
+    const isDark = currentTheme === 'dark';
+    
+    const options = {
+        nodes: {
+            margin: 10,
+            font: { color: isDark ? '#f8f9fa' : '#212529', size: 14 },
+            color: {
+                background: isDark ? '#212529' : '#ffffff',
+                border: isDark ? '#495057' : '#dee2e6',
+                highlight: { background: '#0d6efd', border: '#0d6efd' }
+            },
+            borderWidth: 1.5
+        },
+        edges: {
+            arrows: { to: { enabled: true, scaleFactor: 0.8 } },
+            color: { color: isDark ? '#6c757d' : '#adb5bd', highlight: '#0d6efd' },
+            smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.6 }
+        },
+        layout: {
+            hierarchical: {
+                enabled: true,
+                direction: 'UD',
+                sortMethod: 'directed',
+                nodeSpacing: 160,
+                levelSeparation: 100
+            }
+        },
+        interaction: { dragNodes: true, zoomView: true, dragView: true },
+        physics: { enabled: false }
+    };
+
+    if(network) network.destroy();
+    network = new vis.Network(container, data, options);
+
+    // FIX: Instantly unlock structural direction constraints right after layout compilation.
+    // This allows seamless, immediate movement in all directions (UP, DOWN, LEFT, RIGHT).
+    network.setOptions({
+        layout: { hierarchical: { enabled: false } },
+        edges: { smooth: { forceDirection: 'none' } }
+    });
+}
+
+/* Screenshot Capture Utility */
+function takeFlowchartScreenshot() {
+    const canvas = document.querySelector('#flowchart canvas');
+    if (!canvas) {
+        alert("Flowchart rendering canvas not found.");
+        return;
+    }
+    try {
+        const dataUrl = canvas.toDataURL("image/png");
+        const downloadLink = document.createElement('a');
+        downloadLink.download = `flowchart-${Date.now()}.png`;
+        downloadLink.href = dataUrl;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+    } catch(err) {
+        alert("Failed to capture flowchart screenshot: " + err.message);
+    }
+}
+
+const pathHelperModal = new bootstrap.Modal(document.getElementById('pathHelperModal'));
+function showJsonPathHelper(context) {
+    currentHelperContext = context;
+    switchHelperTab(0);
+    pathHelperModal.show();
+}
+
+function generateDynamicFilters(json) {
+    const filters = new Set();
+    function traverse(obj, path) {
+        if (typeof obj !== 'object' || obj === null) return;
+        if (Array.isArray(obj) && obj.length > 0 && typeof obj[0] === 'object') {
+            const keys = Object.keys(obj[0]);
+            if (keys.length) {
+                const valStr = typeof obj[0][keys[0]] === 'string' ? `'${obj[0][keys[0]]}'` : obj[0][keys[0]];
+                filters.add(`${path}[?(@.${keys[0]} == ${valStr})]`);
+            }
+        }
+        if (Array.isArray(obj)) obj.forEach((item, i) => traverse(item, `${path}[${i}]`));
+        else Object.entries(obj).forEach(([k, v]) => {
+            if (typeof v === 'string') filters.add(`$..[?(@.${k} == '${v}')]`);
+            traverse(v, `${path}.${k}`);
+        });
+    }
+    traverse(json, "$");
+    return Array.from(filters).slice(0, 12);
+}
+
+function switchHelperTab(tabIndex) {
+    const tabs = document.querySelectorAll('#helperTabs .nav-link');
+    tabs.forEach((el, i) => el.classList.toggle('active', i === tabIndex));
+    const content = document.getElementById('tabContent');
+    
+    if (tabIndex === 0) {
+        let html = `<div class="row g-2">`;
+        Array.from(collectPaths(currentJson || {})).slice(0, 40).forEach(p => {
+            const safeP = p.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            html += `<div class="col-sm-6 col-md-4 col-lg-3"><button class="btn btn-outline-secondary w-100 text-start text-truncate font-monospace small" onclick="useHelperPath('${safeP}')">${p}</button></div>`;
+        });
+        content.innerHTML = html + `</div>`;
+    } else {
+        let html = `<div class="row g-2">`;
+        generateDynamicFilters(currentJson || {}).forEach(ex => {
+            const safeEx = ex.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            html += `<div class="col-md-6"><button class="btn btn-outline-primary w-100 text-start font-monospace small" onclick="useHelperPath('${safeEx}')">${ex}</button></div>`;
+        });
+        content.innerHTML = html + `</div>`;
+    }
+}
+
+function useHelperPath(path) {
+    if (currentHelperContext === 'tree') {
+        document.getElementById('treePath').value = path;
+        renderTree(currentJson, path);
+    } else {
+        document.getElementById('flowPath').value = path;
+        renderVisNetworkFlow(currentJson, path);
+    }
+    pathHelperModal.hide();
+}
+
+function applySelectedPath(view) {
+    const path = document.getElementById(view + 'PathSelect').value;
+    if (view === 'tree') {
+        document.getElementById('treePath').value = path;
+        renderTree(currentJson, path);
+    } else {
+        document.getElementById('flowPath').value = path;
+        renderVisNetworkFlow(currentJson, path);
+    }
+}
+
+function applyTreeFilter() { renderTree(currentJson, document.getElementById('treePath').value.trim() || "$"); }
+function applyFlowFilter() { renderVisNetworkFlow(currentJson, document.getElementById('flowPath').value.trim() || "$"); }
+
+function renderAll() {
+    try {
+        currentJson = JSON.parse(editor.getValue());
+        const status = document.getElementById('status');
+        status.textContent = "✓ Valid";
+        status.className = "badge bg-success ms-3 px-3 py-2";
+        populatePathDropdowns();
+        renderTree(currentJson);
+        renderVisNetworkFlow(currentJson);
+    } catch(e) {
+        const status = document.getElementById('status');
+        status.textContent = "✕ Invalid JSON";
+        status.className = "badge bg-danger ms-3 px-3 py-2";
+    }
+}
+
+function zoomIn() { if (network) network.moveTo({ scale: network.getScale() + 0.15 }); }
+function zoomOut() { if (network) network.moveTo({ scale: Math.max(network.getScale() - 0.15, 0.05) }); }
+function resetZoom() { if (network) network.fit(); }
+
+/* Theme Switcher Engine (Updates canvas inline styles to avoid UI refreshes) */
+function toggleTheme() {
+    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-bs-theme', currentTheme);
+    if (editor) editor.updateOptions({ theme: currentTheme === 'dark' ? 'vs-dark' : 'vs' });
+    
+    if (network) {
+        const isDark = currentTheme === 'dark';
+        network.setOptions({
+            nodes: {
+                font: { color: isDark ? '#f8f9fa' : '#212529' },
+                color: {
+                    background: isDark ? '#212529' : '#ffffff',
+                    border: isDark ? '#495057' : '#dee2e6'
+                }
+            },
+            edges: {
+                color: { color: isDark ? '#6c757d' : '#adb5bd' }
+            }
+        });
+    }
+}
+
+function togglePanel(panelId) {
+    const panel = document.getElementById(panelId);
+    const isHidden = panel.style.display === "none";
+    panel.style.display = isHidden ? "flex" : "none";
+    const handle = document.getElementById('handle-' + panelId.split('-')[0]);
+    if(handle) handle.style.display = isHidden ? "block" : "none";
+}
+
+function copySelectedContent() {
+    const text = document.getElementById('treeSelectedContent').value;
+    if(!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('copyBtn');
+        btn.textContent = '✓ Copied!';
+        btn.className = 'btn btn-success btn-sm w-100 mt-2';
+        setTimeout(() => {
+            btn.textContent = '📋 Copy Content';
+            btn.className = 'btn btn-primary btn-sm w-100 mt-2';
+        }, 1500);
+    });
+}
+
+/* Resizing Mechanics Container */
+document.querySelectorAll('.resize-handle').forEach(handle => {
+    handle.addEventListener('mousedown', (e) => {
+        const prev = handle.previousElementSibling;
+        const startX = e.clientX;
+        const startWidth = prev.offsetWidth;
+        const onMove = (ev) => { prev.style.flex = `0 0 ${Math.max(220, startWidth + ev.clientX - startX)}px`; };
+        const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+});
+</script>
+</body>
+</html>
