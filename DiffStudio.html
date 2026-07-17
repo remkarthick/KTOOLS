@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diff Studio</title>
+    <style>
+        /* SOOTHING COLOR PALETTES */
+        :root {
+            /* Light Mode - Soft & Clean */
+            --bg-main: #f8f9fa;
+            --bg-workspace: #ffffff;
+            --bg-toolbar: #ffffff;
+            --bg-panel: #fafbfc;
+            --text-main: #495057;
+            --text-muted: #6c757d;
+            --border-color: #e2e8f0;
+            --btn-bg: #f1f3f5;
+            --btn-hover: #e9ecef;
+            --accent: #4c6ef5;
+            --accent-hover: #3b5bdb;
+            
+            /* Pastel Diff Colors (Light) */
+            --diff-add-bg: #e6fcf5;
+            --diff-add-text: #0ca678;
+            --diff-del-bg: #fff5f5;
+            --diff-del-text: #e03131;
+            --diff-mod-bg: #fff9db;
+            --diff-mod-text: #f08c00;
+            --header-bg: #f1f3f5;
+        }
+
+        body.dark-mode {
+            /* Dark Mode - Deep & Easy on the Eyes */
+            --bg-main: #18181b;
+            --bg-workspace: #1e1e24;
+            --bg-toolbar: #27272a;
+            --bg-panel: #27272a;
+            --text-main: #e4e4e7;
+            --text-muted: #a1a1aa;
+            --border-color: #3f3f46;
+            --btn-bg: #3f3f46;
+            --btn-hover: #52525b;
+            --accent: #5c7cfa;
+            --accent-hover: #748ffc;
+
+            /* Muted Diff Colors (Dark) */
+            --diff-add-bg: rgba(46, 160, 67, 0.15);
+            --diff-add-text: #69db7c;
+            --diff-del-bg: rgba(248, 81, 73, 0.15);
+            --diff-del-text: #ff8787;
+            --diff-mod-bg: rgba(210, 153, 34, 0.15);
+            --diff-mod-text: #ffd43b;
+            --header-bg: #27272a;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex; flex-direction: column; height: 100vh;
+            background-color: var(--bg-main); color: var(--text-main);
+            overflow: hidden;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Toolbar Styling */
+        #toolbar {
+            display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+            padding: 10px 16px; background-color: var(--bg-toolbar);
+            border-bottom: 1px solid var(--border-color); z-index: 10;
+        }
+
+        h2 { margin: 0; font-size: 15px; margin-right: 10px; font-weight: 600; color: var(--accent); }
+
+        .toolbar-group {
+            display: flex; gap: 6px; border-right: 1px solid var(--border-color);
+            padding-right: 12px; align-items: center;
+        }
+        .toolbar-group:last-child { border-right: none; }
+
+        select, button, input[type="text"] {
+            padding: 6px 12px; font-size: 13px; border: 1px solid var(--border-color);
+            border-radius: 6px; background-color: var(--btn-bg); color: var(--text-main);
+            transition: all 0.2s ease; cursor: pointer; outline: none;
+        }
+
+        button:hover { background-color: var(--btn-hover); }
+        .primary-btn { background-color: var(--accent); color: white; border: none; }
+        .primary-btn:hover { background-color: var(--accent-hover); }
+
+        .checkbox-container { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; color: var(--text-muted); }
+
+        /* Workspace Layout */
+        #workspace { display: flex; flex: 1; overflow: hidden; background-color: var(--bg-workspace); }
+        #center-column { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+        
+        /* Editor Headers */
+        #editor-headers {
+            display: flex; background-color: var(--header-bg); border-bottom: 1px solid var(--border-color);
+            font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.5px;
+        }
+        .header-title { flex: 1; padding: 8px 16px; text-align: center; }
+        .header-title:first-child { border-right: 1px solid var(--border-color); }
+
+        #editor-container { flex: 1; height: 100%; }
+
+        /* Resizers */
+        .resizer-y { height: 6px; background-color: var(--bg-main); cursor: ns-resize; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); z-index: 5; transition: background-color 0.2s; }
+        .resizer-x { width: 6px; background-color: var(--bg-main); cursor: ew-resize; border-left: 1px solid var(--border-color); border-right: 1px solid var(--border-color); z-index: 5; transition: background-color 0.2s; }
+        .resizer-y:hover, .resizer-x:hover, .resizer-active { background-color: var(--accent); opacity: 0.5; }
+
+        /* Sidebar */
+        #sidebar {
+            width: 300px; background-color: var(--bg-panel); 
+            display: flex; flex-direction: column;
+            padding: 20px; box-sizing: border-box; overflow-y: auto;
+        }
+
+        /* Bottom Breakdown Panel */
+        #bottom-panel {
+            height: 250px; background-color: var(--bg-panel);
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 8px 16px; background-color: var(--bg-toolbar); border-bottom: 1px solid var(--border-color);
+            font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; align-items: center;
+        }
+        
+        .breakdown-table-wrapper { flex: 1; overflow-y: auto; }
+        
+        table { width: 100%; border-collapse: collapse; font-family: 'Fira Code', 'Monaco', monospace; font-size: 12px; }
+        th { position: sticky; top: 0; background: var(--bg-toolbar); padding: 8px 12px; border-bottom: 1px solid var(--border-color); text-align: left; color: var(--text-muted); font-weight: 600; }
+        td { padding: 6px 12px; border-bottom: 1px solid var(--border-color); white-space: pre-wrap; word-break: break-all; }
+        tr { cursor: pointer; transition: filter 0.1s; }
+        tr:hover { filter: brightness(0.92); }
+        body.dark-mode tr:hover { filter: brightness(1.2); }
+
+        .row-add { background-color: var(--diff-add-bg); color: var(--diff-add-text); }
+        .row-del { background-color: var(--diff-del-bg); color: var(--diff-del-text); }
+        .row-mod { background-color: var(--diff-mod-bg); color: var(--diff-mod-text); }
+
+        /* Tools inside sidebar */
+        .regex-chip {
+            display: block; width: 100%; text-align: left; margin-bottom: 8px; padding: 8px 12px;
+            font-family: monospace; font-size: 12px; border: 1px solid var(--accent);
+            background: transparent; color: var(--text-main); border-radius: 6px; cursor: pointer;
+        }
+        .regex-chip:hover { background-color: rgba(76, 110, 245, 0.1); }
+        
+        .custom-regex-box { display: flex; gap: 8px; margin-bottom: 15px; }
+        .custom-regex-box input { flex: 1; font-family: monospace; }
+
+        /* Status Bar */
+        #status-bar {
+            background-color: var(--bg-toolbar); border-top: 1px solid var(--border-color);
+            padding: 6px 16px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; color: var(--text-muted);
+        }
+        .diff-stats { display: flex; gap: 20px; font-family: monospace; font-size: 13px; }
+        .stat-add { color: var(--diff-add-text); font-weight: bold; }
+        .stat-rem { color: var(--diff-del-text); font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+    <div id="toolbar">
+        <h2>Diff Studio</h2>
+        
+        <div class="toolbar-group">
+            <select id="language-select">
+                <option value="json">JSON</option>
+                <option value="javascript">JavaScript</option>
+                <option value="html">HTML</option>
+                <option value="python">Python</option>
+                <option value="yaml">YAML</option>
+            </select>
+            <button id="theme-toggle">🌙 Dark Mode</button>
+        </div>
+
+        <div class="toolbar-group">
+            <label class="checkbox-container"><input type="checkbox" id="inline-diff-toggle"> Inline View</label>
+            <label class="checkbox-container"><input type="checkbox" id="ignore-whitespace-toggle"> Ignore Whitespace</label>
+        </div>
+
+        <div class="toolbar-group">
+            <button id="prev-diff-btn" title="Previous Difference">▲ Prev</button>
+            <button id="next-diff-btn" title="Next Difference">▼ Next</button>
+            <button id="format-btn">✨ Format Code</button>
+        </div>
+
+        <div class="toolbar-group" style="margin-left: auto;">
+            <button id="toggle-bottom-btn" class="primary-btn">📋 Toggle Breakdown</button>
+            <button id="toggle-sidebar-btn" class="primary-btn">🔬 Toggle Tools</button>
+        </div>
+    </div>
+
+    <div id="workspace">
+        <div id="center-column">
+            <!-- Headers to identify files -->
+            <div id="editor-headers">
+                <div class="header-title" id="header-original">Source 1</div>
+                <div class="header-title" id="header-modified">Source 2</div>
+            </div>
+            
+            <div id="editor-container"></div>
+            
+            <!-- Resizer for Bottom Panel -->
+            <div class="resizer-y" id="resizer-bottom"></div>
+            
+            <!-- Bottom Detailed Breakdown Panel -->
+            <div id="bottom-panel">
+                <div class="panel-header">
+                    <span>Detailed Change Log (Click any row to instantly jump to the line)</span>
+                </div>
+                <div class="breakdown-table-wrapper">
+                    <table id="breakdown-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 140px;">Action / Location</th>
+                                <th style="width: 70px;">Source 1 Ln</th>
+                                <th style="width: 70px;">Source 2 Ln</th>
+                                <th>Code Content</th>
+                            </tr>
+                        </thead>
+                        <tbody id="breakdown-body">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resizer for Sidebar -->
+        <div class="resizer-x" id="resizer-sidebar"></div>
+
+        <!-- Sidebar Tools -->
+        <div id="sidebar">
+            <div style="margin-bottom: 25px;">
+                <h3 style="font-size:14px; margin:0 0 10px 0; color:var(--text-muted); font-weight:600;">Custom Search Regex</h3>
+                <div class="custom-regex-box">
+                    <input type="text" id="custom-regex-input" placeholder="e.g. [A-Z0-9]+">
+                    <button class="primary-btn" onclick="applyCustomRegex()">Find</button>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h3 style="font-size:14px; margin:0 0 10px 0; color:var(--text-muted); font-weight:600;">Find Hidden Artifacts</h3>
+                <button class="regex-chip" onclick="applyRegex('[^\\\\x00-\\\\x7F]', true)">Find Non-ASCII Characters</button>
+                <button class="regex-chip" onclick="applyRegex('\\\\xA0', true)">Find Non-Breaking Spaces</button>
+                <button class="regex-chip" onclick="applyRegex('[\\\\u200B-\\\\u200D\\\\uFEFF]', true)">Find Zero-Width Gaps</button>
+            </div>
+
+            <button onclick="clearHighlights()" style="width: 100%; margin-top: auto;">Clear Search Highlights</button>
+        </div>
+    </div>
+
+    <div id="status-bar">
+        <span id="file-stats">Ready to compare.</span>
+        <div class="diff-stats">
+            <span class="stat-add" id="stat-added">+0 Additions</span>
+            <span class="stat-rem" id="stat-removed">-0 Deletions</span>
+        </div>
+    </div>
+
+    <!-- Load Monaco Editor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script>
+    <script>
+        const defaultCode1 = `{\n  "projectName": "Diff",\n  "version": "1.0.0",\n  "author": "Dev",\n  "settings": {\n    "port": 8080,\n    "host": "localhost"\n  }\n}`;
+        const defaultCode2 = `{\n  "projectName": "Diff Studio",\n  "version": "1.0.0",\n  "author": "DevTeam",\n  "description": "Ergonomic UI features",\n  "settings": {\n    "port": 9000,\n    "host": "localhost",\n    "https": true\n  }\n}`;
+
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+        window.MonacoEnvironment = {
+            getWorkerUrl: () => `data:text/javascript;charset=utf-8,${encodeURIComponent(`
+                self.MonacoEnvironment = { baseUrl: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/' };
+                importScripts('https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/base/worker/workerMain.js');`
+            )}`
+        };
+
+        let diffEditor, originalModel, modifiedModel;
+        let currentChanges = []; 
+        let currentChangeIndex = -1;
+
+        require(['vs/editor/editor.main'], function() {
+            originalModel = monaco.editor.createModel(defaultCode1, "json");
+            modifiedModel = monaco.editor.createModel(defaultCode2, "json");
+
+            diffEditor = monaco.editor.createDiffEditor(document.getElementById('editor-container'), {
+                theme: 'vs', 
+                automaticLayout: true, 
+                originalEditable: true,
+                renderSideBySide: true, 
+                ignoreTrimWhitespace: false, 
+                minimap: { enabled: false }, // Disabled for a cleaner UI
+                scrollBeyondLastLine: false,
+                fontFamily: "'Fira Code', 'Monaco', monospace"
+            });
+
+            diffEditor.setModel({ original: originalModel, modified: modifiedModel });
+
+            // Update Detailed Panel
+            diffEditor.onDidUpdateDiff(() => {
+                currentChanges = diffEditor.getLineChanges() || [];
+                let added = 0, removed = 0;
+                const tbody = document.getElementById('breakdown-body');
+                tbody.innerHTML = ''; 
+
+                currentChanges.forEach(c => {
+                    // Update Stats
+                    if (c.originalEndLineNumber > 0 && c.modifiedEndLineNumber > 0) {
+                        removed += c.originalEndLineNumber - c.originalStartLineNumber + 1;
+                        added += c.modifiedEndLineNumber - c.modifiedStartLineNumber + 1;
+                    } else if (c.originalEndLineNumber === 0) {
+                        added += c.modifiedEndLineNumber - c.modifiedStartLineNumber + 1;
+                    } else if (c.modifiedEndLineNumber === 0) {
+                        removed += c.originalEndLineNumber - c.originalStartLineNumber + 1;
+                    }
+
+                    // Build Rows with Specific Context
+                    if (c.originalEndLineNumber === 0) {
+                        for(let i = c.modifiedStartLineNumber; i <= c.modifiedEndLineNumber; i++) {
+                            const text = modifiedModel.getLineContent(i);
+                            createRow('➕ Added to File 2', '-', i, text, 'row-add', i);
+                        }
+                    } else if (c.modifiedEndLineNumber === 0) {
+                        for(let i = c.originalStartLineNumber; i <= c.originalEndLineNumber; i++) {
+                            const text = originalModel.getLineContent(i);
+                            createRow('➖ Deleted from S 1', i, '-', text, 'row-del', c.modifiedStartLineNumber);
+                        }
+                    } else {
+                        for(let i = c.originalStartLineNumber; i <= c.originalEndLineNumber; i++) {
+                            const text = originalModel.getLineContent(i);
+                            createRow('🔄 Modified (Old in Source 1)', i, '-', text, 'row-mod', c.modifiedStartLineNumber);
+                        }
+                        for(let i = c.modifiedStartLineNumber; i <= c.modifiedEndLineNumber; i++) {
+                            const text = modifiedModel.getLineContent(i);
+                            createRow('🔄 Modified (New in Source 2)', '-', i, text, 'row-mod', i);
+                        }
+                    }
+                });
+                
+                document.getElementById('stat-added').innerText = `+${added} Lines Added`;
+                document.getElementById('stat-removed').innerText = `-${removed} Lines Removed`;
+            });
+
+            function createRow(action, origLn, modLn, text, className, jumpToModifiedLine) {
+                const tr = document.createElement('tr');
+                tr.className = className;
+                tr.onclick = () => jumpToLine(jumpToModifiedLine);
+                const escapedText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                tr.innerHTML = `<td><strong>${action}</strong></td><td>${origLn}</td><td>${modLn}</td><td>${escapedText || '<em style="opacity:0.6">(empty line)</em>'}</td>`;
+                document.getElementById('breakdown-body').appendChild(tr);
+            }
+
+            // Theme Toggle
+            let isDark = false;
+            document.getElementById('theme-toggle').onclick = function() {
+                isDark = !isDark;
+                document.body.classList.toggle('dark-mode', isDark);
+                monaco.editor.setTheme(isDark ? 'vs-dark' : 'vs');
+                this.innerText = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+            };
+
+            // Options
+            document.getElementById('language-select').onchange = (e) => {
+                monaco.editor.setModelLanguage(originalModel, e.target.value);
+                monaco.editor.setModelLanguage(modifiedModel, e.target.value);
+            };
+
+            document.getElementById('inline-diff-toggle').onchange = e => {
+                const isInline = e.target.checked;
+                diffEditor.updateOptions({ renderSideBySide: !isInline });
+                // Hide File 1 header in inline mode, show both in side-by-side
+                document.getElementById('header-original').style.display = isInline ? 'none' : 'block';
+                document.getElementById('header-modified').innerText = isInline ? "Inline Combined Diff (File 1 & File 2)" : "Modified Output (File 2)";
+            };
+
+            document.getElementById('ignore-whitespace-toggle').onchange = e => diffEditor.updateOptions({ ignoreTrimWhitespace: e.target.checked });
+            
+            document.getElementById('format-btn').onclick = () => {
+                diffEditor.getOriginalEditor().getAction('editor.action.formatDocument').run();
+                diffEditor.getModifiedEditor().getAction('editor.action.formatDocument').run();
+            };
+
+            // Toggle Panel Visibilities
+            const bottomPanel = document.getElementById('bottom-panel');
+            const resizerBottom = document.getElementById('resizer-bottom');
+            document.getElementById('toggle-bottom-btn').onclick = () => {
+                const isHidden = bottomPanel.style.display === 'none';
+                bottomPanel.style.display = isHidden ? 'flex' : 'none';
+                resizerBottom.style.display = isHidden ? 'block' : 'none';
+                diffEditor.layout();
+            };
+
+            const sidebar = document.getElementById('sidebar');
+            const resizerSidebar = document.getElementById('resizer-sidebar');
+            document.getElementById('toggle-sidebar-btn').onclick = () => {
+                const isHidden = sidebar.style.display === 'none';
+                sidebar.style.display = isHidden ? 'flex' : 'none';
+                resizerSidebar.style.display = isHidden ? 'block' : 'none';
+                diffEditor.layout();
+            };
+
+            // Jump Navigation
+            document.getElementById('next-diff-btn').onclick = () => navigateDiff(1);
+            document.getElementById('prev-diff-btn').onclick = () => navigateDiff(-1);
+        });
+
+        // Jump to specific line logic
+        function navigateDiff(direction) {
+            if (currentChanges.length === 0) return;
+            currentChangeIndex += direction;
+            if (currentChangeIndex >= currentChanges.length) currentChangeIndex = 0;
+            if (currentChangeIndex < 0) currentChangeIndex = currentChanges.length - 1;
+            
+            const change = currentChanges[currentChangeIndex];
+            const targetLine = change.modifiedStartLineNumber > 0 ? change.modifiedStartLineNumber : change.originalStartLineNumber;
+            jumpToLine(targetLine);
+        }
+
+        function jumpToLine(lineNumber) {
+            if (lineNumber > 0) {
+                diffEditor.getModifiedEditor().revealLineInCenter(lineNumber);
+                diffEditor.getOriginalEditor().revealLineInCenter(lineNumber);
+                diffEditor.getModifiedEditor().setPosition({ lineNumber: lineNumber, column: 1 });
+            }
+        }
+
+        // ==========================================
+        // DRAG & RESIZE LOGIC
+        // ==========================================
+        
+        // Vertical Resizer (Bottom Panel)
+        const resizerY = document.getElementById('resizer-bottom');
+        const bottomPanel = document.getElementById('bottom-panel');
+        let isDraggingY = false;
+
+        resizerY.addEventListener('mousedown', function(e) {
+            isDraggingY = true;
+            document.body.style.cursor = 'ns-resize';
+            resizerY.classList.add('resizer-active');
+            e.preventDefault(); 
+        });
+
+        // Horizontal Resizer (Sidebar)
+        const resizerX = document.getElementById('resizer-sidebar');
+        const sidebar = document.getElementById('sidebar');
+        let isDraggingX = false;
+
+        resizerX.addEventListener('mousedown', function(e) {
+            isDraggingX = true;
+            document.body.style.cursor = 'ew-resize';
+            resizerX.classList.add('resizer-active');
+            e.preventDefault(); 
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (isDraggingY) {
+                // Calculate new height from bottom of screen
+                const newHeight = window.innerHeight - e.clientY - document.getElementById('status-bar').offsetHeight;
+                if (newHeight > 100 && newHeight < window.innerHeight - 200) {
+                    bottomPanel.style.height = `${newHeight}px`;
+                    if(diffEditor) diffEditor.layout();
+                }
+            }
+            if (isDraggingX) {
+                // Calculate new width from right of screen
+                const newWidth = window.innerWidth - e.clientX;
+                if (newWidth > 150 && newWidth < window.innerWidth - 300) {
+                    sidebar.style.width = `${newWidth}px`;
+                    if(diffEditor) diffEditor.layout();
+                }
+            }
+        });
+
+        document.addEventListener('mouseup', function() {
+            if (isDraggingY || isDraggingX) {
+                isDraggingY = false;
+                isDraggingX = false;
+                document.body.style.cursor = 'default';
+                resizerY.classList.remove('resizer-active');
+                resizerX.classList.remove('resizer-active');
+                if(diffEditor) diffEditor.layout();
+            }
+        });
+
+        // ==========================================
+        // Regex Search Features
+        // ==========================================
+        function applyCustomRegex() {
+            const input = document.getElementById('custom-regex-input').value;
+            if (input) applyRegex(input, false);
+        }
+
+        function applyRegex(regexString, isSpecialChar) {
+            clearHighlights();
+            const origMatches = originalModel.findMatches(regexString, false, true, false, null, true);
+            const modMatches = modifiedModel.findMatches(regexString, false, true, false, null, true);
+            
+            if (!origMatches.length && !modMatches.length) return alert("No matches found.");
+
+            const getDecorations = (matches) => matches.map(m => ({
+                range: m.range,
+                options: { inlineClassName: 'custom-regex-highlight', stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges }
+            }));
+
+            diffEditor.getOriginalEditor().deltaDecorations([], getDecorations(origMatches));
+            diffEditor.getModifiedEditor().deltaDecorations([], getDecorations(modMatches));
+            
+            if (modMatches.length > 0) diffEditor.getModifiedEditor().revealRangeInCenter(modMatches[0].range);
+            else diffEditor.getOriginalEditor().revealRangeInCenter(origMatches[0].range);
+        }
+
+        function clearHighlights() {
+            diffEditor.getOriginalEditor().deltaDecorations([], []);
+            diffEditor.getModifiedEditor().deltaDecorations([], []);
+        }
+    </script>
+</body>
+</html>
