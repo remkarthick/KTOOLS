@@ -1,5 +1,5 @@
 when i do run analysis, the below part is visible in browser please fix it and add additional features and additional servicenow error finding rules. table fields shoudl be searchable in header, i shoudl be able to check the errors in multiple instances. there shoudl be a new tab for every instance i configure
-
+also recommend , which other logs or places i shoudl go and check can be created as part of rule
 
 
 .layout{display:flex;height:calc(100vh - 54px);overflow:hidden} .sidebar{width:240px;min-width:200px;background:var(--surface);border-right:1px solid var(--border); display:flex;flex-direction:column;transition:width .25s;overflow:hidden} .sidebar.collapsed{w
