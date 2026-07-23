@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced OpenAPI Studio Pro</title>
+  
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/split.js/1.6.5/split.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
+  <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js"></script>
+
+  <style>
+    /* ================= ROBUST THEME ENGINE (CSS VARIABLES & BODY BINDING) ================= */
+    :root {
+      --bg-main: #121212;
+      --bg-topbar: #18181b;
+      --bg-panel: #121212;
+      --bg-header: #18181b;
+      --bg-input: #1f1f23;
+      --border-color: #27272a;
+      --text-main: #e0e0e0;
+      --text-muted: #a1a1aa;
+      --hover-bg: #1f1f23;
+      --active-bg: rgba(30, 58, 138, 0.4);
+      --active-text: #93c5fd;
+      --card-bg: #18181b;
+    }
+
+    body.theme-dark {
+      --bg-main: #121212;
+      --bg-topbar: #18181b;
+      --bg-panel: #121212;
+      --bg-header: #18181b;
+      --bg-input: #1f1f23;
+      --border-color: #27272a;
+      --text-main: #e0e0e0;
+      --text-muted: #a1a1aa;
+      --hover-bg: #1f1f23;
+      --active-bg: rgba(30, 58, 138, 0.4);
+      --active-text: #93c5fd;
+      --card-bg: #18181b;
+    }
+
+    body.theme-light {
+      --bg-main: #f8fafc;
+      --bg-topbar: #ffffff;
+      --bg-panel: #ffffff;
+      --bg-header: #f8fafc;
+      --bg-input: #ffffff;
+      --border-color: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --hover-bg: #f1f5f9;
+      --active-bg: #dbeafe;
+      --active-text: #1e40af;
+      --card-bg: #f8fafc;
+    }
+
+    body.theme-glass {
+      --bg-main: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+      --bg-topbar: rgba(15, 23, 42, 0.65);
+      --bg-panel: rgba(15, 23, 42, 0.45);
+      --bg-header: rgba(15, 23, 42, 0.6);
+      --bg-input: rgba(255, 255, 255, 0.05);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --hover-bg: rgba(255, 255, 255, 0.07);
+      --active-bg: rgba(59, 130, 246, 0.35);
+      --active-text: #ffffff;
+      --card-bg: rgba(255, 255, 255, 0.03);
+    }
+
+    body, html { 
+      height: 100%; 
+      margin: 0; 
+      overflow: hidden; 
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      background: var(--bg-main);
+      color: var(--text-main);
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+    
+    .split { display: flex; flex-direction: row; height: calc(100vh - 48px); width: 100%; }
+    .gutter { background-repeat: no-repeat; background-position: 50%; cursor: col-resize; transition: background 0.2s; z-index: 10; background-color: var(--border-color); }
+    .gutter:hover { background-color: #3b82f6 !important; }
+    .panel-scroll { overflow-y: auto; height: 100%; }
+    
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+    ::-webkit-scrollbar-thumb { border-radius: 4px; background: rgba(128,128,128,0.4); }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(150,150,150,0.7); }
+
+    input, textarea, select { padding: 6px 10px; border-radius: 6px; width: 100%; font-size: 13px; transition: all 0.2s; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main); }
+    input[type="checkbox"] { width: auto; accent-color: #3b82f6; cursor: pointer; }
+    input:focus, textarea:focus, select:focus { border-color: #3b82f6; outline: none; }
+    
+    .tree-item { cursor: pointer; padding: 6px 10px; border-radius: 6px; user-select: none; display: flex; justify-content: space-between; align-items: center; transition: background 0.15s; }
+    .tree-item:hover { background: var(--hover-bg); }
+    .tree-indent { margin-left: 16px; border-left: 1px dashed var(--border-color); padding-left: 6px; }
+    
+    .context-menu { position: absolute; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border-radius: 8px; z-index: 5000; min-width: 160px; padding: 6px 0; background: var(--bg-topbar); backdrop-filter: blur(16px); border: 1px solid var(--border-color); color: var(--text-main); }
+    .context-menu-item { padding: 8px 16px; cursor: pointer; font-size: 13px; }
+    .context-menu-item:hover { background: #3b82f6; color: white; }
+    
+    .btn { padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 500; transition: 0.2s; border: none; letter-spacing: -0.01em; }
+    .btn-blue { background: #2563eb; color: white; } .btn-blue:hover { background: #1d4ed8; }
+    .btn-green { background: #16a34a; color: white; } .btn-green:hover { background: #15803d; }
+    .btn-red { background: #dc2626; color: white; } .btn-red:hover { background: #b91c1c; }
+    
+    .raw-textarea { width: 100%; height: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; border: none; resize: none; padding: 12px; background: var(--bg-panel); color: var(--text-main); }
+    .raw-textarea:focus { outline: none; }
+
+    .top-bar { background: var(--bg-topbar); border-bottom: 1px solid var(--border-color); color: var(--text-main); backdrop-filter: blur(20px); }
+    .panel { background: var(--bg-panel); border-right: 1px solid var(--border-color); backdrop-filter: blur(20px); }
+    .panel-header { background: var(--bg-header); border-bottom: 1px solid var(--border-color); backdrop-filter: blur(10px); }
+    .sub-card { background: var(--card-bg); border: 1px solid var(--border-color); backdrop-filter: blur(4px); }
+    .tree-item.active { background: var(--active-bg); color: var(--active-text); border-left: 3px solid #3b82f6; }
+  </style>
+</head>
+<body class="theme-dark">
+  <div id="app" class="flex flex-col h-screen" @click="closeContextMenu">
+    
+    <!-- Top Bar -->
+    <div class="h-12 top-bar flex items-center justify-between px-4 z-25 shadow-sm shrink-0">
+      <div class="font-bold text-sm flex items-center gap-2 tracking-wide">
+        <span class="text-blue-500 text-base">⚡</span> OpenAPI Studio Pro
+      </div>
+
+      <!-- Panel Toggles -->
+      <div class="inline-flex rounded-lg shadow-sm p-0.5 border border-gray-600/30 bg-black/10" role="group">
+        <button type="button" class="btn rounded-l px-3" :class="panels.explorer ? 'btn-blue' : 'opacity-60'" @click="togglePanel('explorer')">Explorer</button>
+        <button type="button" class="btn px-3" :class="panels.editor ? 'btn-blue' : 'opacity-60'" @click="togglePanel('editor')">Editor</button>
+        <button type="button" class="btn px-3" :class="panels.preview ? 'btn-blue' : 'opacity-60'" @click="togglePanel('preview')">Preview</button>
+        <button type="button" class="btn rounded-r px-3" :class="panels.raw ? 'btn-blue' : 'opacity-60'" @click="togglePanel('raw')">Raw Code</button>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Sleek Theme Buttons -->
+        <div class="inline-flex rounded-lg shadow-sm p-0.5 border border-gray-600/30 bg-black/10">
+          <button @click="theme = 'dark'" class="btn text-xs px-2.5 py-1 rounded-l" :class="theme === 'dark' ? 'btn-blue' : 'opacity-60'">Dark</button>
+          <button @click="theme = 'light'" class="btn text-xs px-2.5 py-1" :class="theme === 'light' ? 'btn-blue' : 'opacity-60'">Light</button>
+          <button @click="theme = 'glass'" class="btn text-xs px-2.5 py-1 rounded-r" :class="theme === 'glass' ? 'btn-blue' : 'opacity-60'">Glass</button>
+        </div>
+
+        <span class="text-xs font-mono text-green-400 hidden md:inline">{{ saveStatus }}</span>
+        <label class="btn btn-blue cursor-pointer">
+          Import
+          <input type="file" class="hidden" accept=".yaml,.yml,.json" @change="importSpec">
+        </label>
+        <button @click="exportSpec('yaml')" class="btn btn-blue">Export YAML</button>
+        <button @click="clearSpec" class="btn btn-red">Reset</button>
+      </div>
+    </div>
+
+    <!-- Main Resizable Container -->
+    <div class="split" ref="splitContainer">
+      
+      <!-- PANEL 1: EXPLORER -->
+      <div v-show="panels.explorer" id="panel-explorer" class="panel panel-scroll p-3 text-sm flex flex-col shrink-0">
+        <input type="text" v-model="searchQuery" placeholder="Search paths or schemas..." class="mb-3 sticky top-0 z-10 shadow-sm" />
+        
+        <div class="flex-1 overflow-y-auto space-y-1">
+          <div class="tree-item font-semibold" :class="{active: selectedItem.type === 'info'}" @click="selectItem('info', openapi.info)">
+            <span>📄 General Info</span>
+          </div>
+          
+          <div class="tree-item font-semibold" :class="{active: selectedItem.type === 'servers'}" @click="selectItem('servers', openapi.servers)">
+            <span>🌍 Servers</span>
+          </div>
+
+          <div class="tree-item font-semibold" :class="{active: selectedItem.type === 'securitySchemes'}" @click="selectItem('securitySchemes', openapi.components.securitySchemes || {})">
+            <span>🔒 Security Schemes</span>
+          </div>
+
+          <!-- Paths -->
+          <div class="mt-4">
+            <div class="tree-item font-semibold group" @click="toggleTree('paths')">
+              <span>{{ treeState.paths ? '▼' : '▶' }} Endpoints (Paths)</span>
+              <button @click.stop="openContext($event, 'paths')" class="opacity-0 group-hover:opacity-100 px-2 text-green-400 font-bold">+</button>
+            </div>
+            <div v-show="treeState.paths" class="tree-indent py-1 space-y-1">
+              <div v-for="(methods, path) in filteredPaths" :key="path">
+                <div class="tree-item truncate group text-xs font-medium" :class="{active: selectedItem.id === path && selectedItem.type === 'path'}" 
+                     @click="selectItem('path', methods, path)"
+                     @contextmenu.prevent="openContext($event, 'pathItem', path)">
+                  <span class="truncate">{{ path }}</span>
+                  <span class="text-xs text-red-400 opacity-0 group-hover:opacity-100" @click.stop="deleteItem('pathItem', path)">×</span>
+                </div>
+                <div class="tree-indent text-xs mb-1">
+                  <span v-for="(_, method) in methods" :key="method" 
+                        class="mr-1.5 px-1.5 py-0.5 rounded uppercase font-bold cursor-pointer transition-colors inline-block" 
+                        :class="[methodColor(method), selectedItem.type === 'operation' && selectedItem.id === `${path}-${method}` ? 'bg-blue-600/40 text-blue-200' : 'hover:bg-blue-600/20']"
+                        @click="selectItem('operation', methods[method], `${path}-${method}`, { path, method })">
+                    {{ method }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Schemas -->
+          <div class="mt-4">
+            <div class="tree-item font-semibold group" @click="toggleTree('schemas')">
+              <span>{{ treeState.schemas ? '▼' : '▶' }} Schemas</span>
+              <button @click.stop="openContext($event, 'schemas')" class="opacity-0 group-hover:opacity-100 px-2 text-green-400 font-bold">+</button>
+            </div>
+            <div v-show="treeState.schemas" class="tree-indent py-1 space-y-1">
+              <div v-for="(schema, name) in filteredSchemas" :key="name"
+                   class="tree-item truncate group text-xs font-medium" :class="{active: selectedItem.id === name && selectedItem.type === 'schema'}"
+                   draggable="true" @dragstart="dragStart($event, `#/components/schemas/${name}`)"
+                   @click="selectItem('schema', schema, name)"
+                   @contextmenu.prevent="openContext($event, 'schemaItem', name)">
+                <span class="truncate">📦 {{ name }}</span>
+                <span class="text-xs text-red-400 opacity-0 group-hover:opacity-100" @click.stop="deleteItem('schemaItem', name)">×</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL 2: EDITOR -->
+      <div v-show="panels.editor" id="panel-editor" class="panel panel-scroll flex flex-col shrink-0">
+        
+        <div v-if="!selectedItem.type" class="flex-1 flex flex-col items-center justify-center opacity-60 space-y-3 p-8 text-center">
+          <div class="text-4xl">⚡</div>
+          <h2 class="text-lg font-bold">OpenAPI Studio Pro</h2>
+          <p class="text-xs">Select an item from the sidebar explorer to begin editing.</p>
+        </div>
+
+        <div v-else class="flex flex-col h-full">
+          <!-- Editor Header & Component Visual/JSON Toggle -->
+          <div class="panel-header p-3 font-bold flex items-center justify-between shrink-0 shadow-sm">
+            <div class="truncate text-blue-400 text-xs font-mono">{{ getEditorTitle() }}</div>
+            <div class="flex items-center gap-1 p-0.5 rounded border border-gray-600/30 bg-black/10 text-xs">
+              <button @click="setEditorMode('visual')" class="px-2.5 py-1 rounded font-medium transition-colors" :class="editorViewMode === 'visual' ? 'bg-blue-600 text-white' : 'opacity-60'">Visual</button>
+              <button @click="setEditorMode('json')" class="px-2.5 py-1 rounded font-medium transition-colors" :class="editorViewMode === 'json' ? 'bg-blue-600 text-white' : 'opacity-60'">JSON</button>
+            </div>
+          </div>
+
+          <!-- Tabs (For Operation & Schema) -->
+          <div class="panel-header flex border-b text-xs overflow-x-auto shrink-0" v-if="editorViewMode === 'visual' && availableTabs.length > 0">
+            <button v-for="tab in availableTabs" :key="tab"
+                    @click="activeTab = tab"
+                    class="px-4 py-2.5 border-b-2 font-medium transition-colors whitespace-nowrap"
+                    :class="activeTab === tab ? 'border-blue-500 text-blue-400 font-bold bg-blue-500/10' : 'border-transparent opacity-70 hover:opacity-100'">
+              {{ tab }}
+            </button>
+          </div>
+
+          <!-- COMPONENT LEVEL JSON MODE -->
+          <div v-if="editorViewMode === 'json'" class="flex-1 relative flex flex-col">
+            <div class="panel-header px-3 py-1.5 text-xs flex justify-between items-center opacity-80">
+              <span>Raw JSON Object Editor</span>
+              <span v-if="componentJsonError" class="text-red-400 font-mono">⚠️ {{ componentJsonError }}</span>
+            </div>
+            <textarea v-model="componentJsonString" @input="updateComponentFromJson" class="raw-textarea flex-1" spellcheck="false"></textarea>
+          </div>
+
+          <!-- COMPONENT LEVEL VISUAL MODE -->
+          <div v-else class="p-5 flex-1 overflow-y-auto space-y-6">
+            
+            <!-- INFO EDITOR -->
+            <template v-if="selectedItem.type === 'info'">
+              <div class="space-y-4">
+                <div class="flex gap-4">
+                  <div class="w-1/2">
+                    <label class="text-xs opacity-75 block mb-1">OpenAPI Version</label>
+                    <select v-model="openapi.openapi" @change="trigger">
+                      <option value="3.0.3">3.0.3</option>
+                      <option value="3.1.0">3.1.0</option>
+                    </select>
+                  </div>
+                  <div class="w-1/2">
+                    <label class="text-xs opacity-75 block mb-1">API Version</label>
+                    <input v-model="openapi.info.version" @input="trigger">
+                  </div>
+                </div>
+                <div><label class="text-xs opacity-75 block mb-1">API Title</label><input v-model="openapi.info.title" @input="trigger"></div>
+                <div><label class="text-xs opacity-75 block mb-1">Description</label><textarea v-model="openapi.info.description" rows="8" @input="trigger"></textarea></div>
+              </div>
+            </template>
+
+            <!-- SERVERS EDITOR -->
+            <template v-if="selectedItem.type === 'servers'">
+              <div class="flex justify-between items-center mb-2">
+                <h3 class="font-bold text-sm">Configured Servers</h3>
+                <button class="btn btn-green" @click="addServer">+ Add Server</button>
+              </div>
+              <div v-for="(srv, i) in openapi.servers" :key="i" class="sub-card p-4 rounded-lg mb-4 relative">
+                <button class="absolute top-2 right-2 text-red-400 font-bold hover:scale-110 p-1" @click="openapi.servers.splice(i, 1); trigger()">×</button>
+                <div class="space-y-3">
+                  <div><label class="text-xs opacity-75 block mb-1">URL</label><input v-model="srv.url" placeholder="https://api.example.com/v1" @input="trigger"></div>
+                  <div><label class="text-xs opacity-75 block mb-1">Description</label><input v-model="srv.description" @input="trigger"></div>
+                </div>
+              </div>
+            </template>
+
+            <!-- SECURITY SCHEMES EDITOR -->
+            <template v-if="selectedItem.type === 'securitySchemes'">
+               <div class="flex justify-between items-center mb-2">
+                <h3 class="font-bold text-sm">Security Schemes</h3>
+                <button class="btn btn-green" @click="addSecurityScheme">+ Add Scheme</button>
+              </div>
+              <div v-for="(scheme, name) in openapi.components.securitySchemes" :key="name" class="sub-card p-4 rounded-lg mb-4">
+                <div class="flex gap-2 mb-3">
+                  <input :value="name" @change="renameKey(openapi.components.securitySchemes, name, $event.target.value); trigger()" class="font-bold text-blue-400 w-1/2">
+                  <select v-model="scheme.type" @change="trigger" class="w-1/2">
+                    <option value="http">http</option><option value="apiKey">apiKey</option>
+                    <option value="oauth2">oauth2</option><option value="openIdConnect">openIdConnect</option>
+                  </select>
+                  <button class="btn btn-red" @click="delete openapi.components.securitySchemes[name]; trigger()">Delete</button>
+                </div>
+                
+                <div v-if="scheme.type === 'http'" class="space-y-2">
+                  <div><label class="text-xs opacity-75 block mb-1">Scheme (bearer, basic)</label><input v-model="scheme.scheme" @input="trigger"></div>
+                  <div v-if="scheme.scheme === 'bearer'"><label class="text-xs opacity-75 block mb-1">Bearer Format (JWT)</label><input v-model="scheme.bearerFormat" @input="trigger"></div>
+                </div>
+              </div>
+            </template>
+
+            <!-- PATH EDITOR -->
+            <template v-if="selectedItem.type === 'path'">
+              <div class="mb-4">
+                <label class="text-xs opacity-75 block mb-1">Path Name</label>
+                <input :value="selectedItem.id" readonly class="opacity-60 cursor-not-allowed">
+              </div>
+              <h3 class="text-sm font-bold mb-3 border-b border-gray-600/30 pb-1 opacity-80">HTTP Methods</h3>
+              <div class="grid grid-cols-2 gap-3">
+                <div v-for="method in ['get','post','put','patch','delete']" :key="method"
+                     class="flex items-center justify-between p-3 rounded-lg sub-card">
+                  <span class="uppercase font-bold text-sm" :class="methodColor(method)">{{ method }}</span>
+                  <button @click="toggleMethod(selectedItem.id, method)" class="btn" :class="selectedItem.data[method] ? 'btn-red' : 'btn-blue'">
+                    {{ selectedItem.data[method] ? 'Remove' : 'Add' }}
+                  </button>
+                </div>
+              </div>
+            </template>
+
+            <!-- OPERATION EDITOR -->
+            <template v-if="selectedItem.type === 'operation'">
+              <div class="flex justify-between items-center pb-2 border-b border-gray-600/30">
+                <span class="text-xs font-bold uppercase opacity-75">{{ activeTab }} View</span>
+                <div class="inline-flex rounded bg-black/10 p-0.5 border border-gray-600/30 text-xs">
+                  <button @click="setTabMode(activeTab, 'visual')" class="px-2 py-0.5 rounded font-medium" :class="tabViewModes[activeTab] !== 'json' ? 'bg-blue-600 text-white' : 'opacity-60'">Visual</button>
+                  <button @click="setTabMode(activeTab, 'json')" class="px-2 py-0.5 rounded font-medium" :class="tabViewModes[activeTab] === 'json' ? 'bg-blue-600 text-white' : 'opacity-60'">JSON</button>
+                </div>
+              </div>
+
+              <div v-if="tabViewModes[activeTab] === 'json'" class="h-96 flex flex-col">
+                <span v-if="tabJsonErrors[activeTab]" class="text-red-400 text-xs mb-1 font-mono">⚠️ {{ tabJsonErrors[activeTab] }}</span>
+                <textarea v-model="tabJsonStrings[activeTab]" @input="updateTabFromJson(activeTab)" class="raw-textarea flex-1 rounded-lg sub-card" spellcheck="false"></textarea>
+              </div>
+
+              <div v-else class="space-y-4">
+                <div v-if="activeTab === 'General'" class="space-y-4">
+                  <div class="flex items-center gap-3 mb-2">
+                    <span class="px-3 py-1 font-bold rounded uppercase text-sm sub-card" :class="methodColor(selectedItem.meta.method)">{{ selectedItem.meta.method }}</span>
+                    <span class="font-mono text-sm opacity-75">{{ selectedItem.meta.path }}</span>
+                  </div>
+                  <div><label class="text-xs opacity-75 block mb-1">Operation ID</label><input v-model="selectedItem.data.operationId" @input="trigger"></div>
+                  <div><label class="text-xs opacity-75 block mb-1">Summary</label><input v-model="selectedItem.data.summary" @input="trigger"></div>
+                  <div><label class="text-xs opacity-75 block mb-1">Description</label><textarea v-model="selectedItem.data.description" rows="3" @input="trigger"></textarea></div>
+                  <label class="flex items-center gap-2 mt-2 cursor-pointer text-sm">
+                    <input type="checkbox" v-model="selectedItem.data.deprecated" @change="trigger"> Mark as Deprecated
+                  </label>
+                </div>
+
+                <div v-if="activeTab === 'Parameters'">
+                  <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-sm">Parameters</h3>
+                    <button @click="addParameter" class="btn btn-green">+ Add Parameter</button>
+                  </div>
+                  <div v-for="(param, i) in selectedItem.data.parameters" :key="i" class="sub-card p-4 rounded-lg mb-3">
+                    <div class="flex justify-between gap-3 mb-3">
+                      <div class="w-1/3"><label class="text-xs opacity-75 block mb-1">Name</label><input v-model="param.name" @input="trigger"></div>
+                      <div class="w-1/3">
+                        <label class="text-xs opacity-75 block mb-1">In</label>
+                        <select v-model="param.in" @change="trigger"><option value="query">Query</option><option value="path">Path</option><option value="header">Header</option><option value="cookie">Cookie</option></select>
+                      </div>
+                      <div class="w-1/3 flex items-end justify-between pb-1">
+                        <label class="flex items-center gap-2 text-sm"><input type="checkbox" v-model="param.required" @change="trigger"> Required</label>
+                        <button @click="selectedItem.data.parameters.splice(i, 1); trigger()" class="text-red-400 text-xs hover:underline">Remove</button>
+                      </div>
+                    </div>
+                    <div>
+                      <label class="text-xs opacity-75 block mb-1">Schema $ref (Drag & Drop or Type)</label>
+                      <input :value="param.schema && param.schema.$ref ? param.schema.$ref : ''" 
+                             @input="setSchemaRef(param, 'schema', $event.target.value)" 
+                             placeholder="#/components/schemas/..." 
+                             @drop.prevent="setSchemaRef(param, 'schema', $event.dataTransfer.getData('text/plain'))" 
+                             @dragover.prevent />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- REQUEST BODY & EXAMPLES EDITOR -->
+                <div v-if="activeTab === 'Request Body'">
+                  <div v-if="!selectedItem.data.requestBody" class="text-center py-8">
+                    <button @click="initRequestBody" class="btn btn-blue">Configure Request Body</button>
+                  </div>
+                  <div v-else class="space-y-4">
+                    <div class="flex justify-between items-center">
+                      <label class="flex items-center gap-2 font-bold text-sm"><input type="checkbox" v-model="selectedItem.data.requestBody.required" @change="trigger"> Required Body</label>
+                      <button @click="delete selectedItem.data.requestBody; trigger()" class="btn btn-red">Remove Body</button>
+                    </div>
+                    
+                    <div v-for="(mediaContent, mediaType) in selectedItem.data.requestBody.content" :key="mediaType" class="sub-card p-4 rounded-lg mb-3 space-y-4">
+                      <div>
+                        <label class="text-xs font-bold opacity-75 block mb-1">Media Type: {{ mediaType }}</label>
+                        <label class="text-xs opacity-75 block mb-1">Schema $ref (Drag & Drop or Type)</label>
+                        <input :value="mediaContent.schema && mediaContent.schema.$ref ? mediaContent.schema.$ref : ''" 
+                               @input="setSchemaRef(mediaContent, 'schema', $event.target.value)" 
+                               placeholder="#/components/schemas/..." 
+                               @drop.prevent="setSchemaRef(mediaContent, 'schema', $event.dataTransfer.getData('text/plain'))" 
+                               @dragover.prevent />
+                      </div>
+
+                      <!-- Multiple Examples for Request Body -->
+                      <div class="border-t border-gray-600/30 pt-3">
+                        <div class="flex justify-between items-center mb-2">
+                          <h4 class="font-bold text-xs uppercase opacity-80">Request Examples (One or More)</h4>
+                          <button @click="addExample(mediaContent)" class="btn btn-green text-xs">+ Add Example</button>
+                        </div>
+                        <div v-if="!mediaContent.examples || Object.keys(mediaContent.examples).length === 0" class="text-xs opacity-60 italic py-2">
+                          No examples defined. Click "+ Add Example" to create one.
+                        </div>
+                        <div v-for="(exObj, exName) in mediaContent.examples" :key="exName" class="sub-card p-3 rounded mb-3 space-y-2 relative border border-gray-600/20">
+                          <button class="absolute top-2 right-2 text-red-400 font-bold hover:scale-110 text-xs" @click="deleteExample(mediaContent, exName)">×</button>
+                          <div class="flex gap-2">
+                            <div class="w-1/2">
+                              <label class="text-xs opacity-75 block mb-1">Example Key Name</label>
+                              <input :value="exName" @change="renameKey(mediaContent.examples, exName, $event.target.value); trigger()" class="font-bold text-blue-400">
+                            </div>
+                            <div class="w-1/2">
+                              <label class="text-xs opacity-75 block mb-1">Summary</label>
+                              <input v-model="exObj.summary" @input="trigger" placeholder="Short summary">
+                            </div>
+                          </div>
+                          <div>
+                            <label class="text-xs opacity-75 block mb-1">Description</label>
+                            <input v-model="exObj.description" @input="trigger" placeholder="Optional description">
+                          </div>
+                          <div>
+                            <label class="text-xs opacity-75 block mb-1">Value (JSON format)</label>
+                            <textarea :value="typeof exObj.value === 'object' ? JSON.stringify(exObj.value, null, 2) : exObj.value" 
+                                      @input="updateExampleJson(exObj, $event.target.value)" 
+                                      rows="4" 
+                                      class="raw-textarea rounded sub-card" 
+                                      placeholder='{ "name": "Sample", "price": 9.99 }'></textarea>
+                            <span v-if="exObj._jsonError" class="text-red-400 text-xs font-mono mt-1 block">⚠️ {{ exObj._jsonError }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- RESPONSES & EXAMPLES EDITOR -->
+                <div v-if="activeTab === 'Responses'">
+                  <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-sm">HTTP Responses</h3>
+                    <button @click="addResponse" class="btn btn-green">+ Add Response</button>
+                  </div>
+                  <div v-for="(response, code) in selectedItem.data.responses" :key="code" class="sub-card p-4 rounded-lg mb-4 relative space-y-3">
+                    <button class="absolute top-2 right-2 text-red-400 font-bold hover:scale-110 p-1" @click="delete selectedItem.data.responses[code]; trigger()">×</button>
+                    <div class="flex gap-3">
+                      <div class="w-1/4"><label class="text-xs opacity-75 block mb-1">Status</label><input :value="code" @change="renameKey(selectedItem.data.responses, code, $event.target.value); trigger()" class="font-bold text-blue-400"></div>
+                      <div class="w-3/4"><label class="text-xs opacity-75 block mb-1">Description</label><input v-model="response.description" @input="trigger"></div>
+                    </div>
+
+                    <!-- Response Content & Examples Support -->
+                    <div class="border-t border-gray-600/30 pt-3">
+                      <div class="flex justify-between items-center mb-2">
+                        <h4 class="font-bold text-xs uppercase opacity-80">Response Body (Content)</h4>
+                        <button v-if="!response.content" @click="initResponseContent(response)" class="btn btn-blue text-xs">+ Add Content Body</button>
+                        <button v-else @click="delete response.content; trigger()" class="text-red-400 text-xs hover:underline">Remove Content</button>
+                      </div>
+
+                      <div v-if="response.content">
+                        <div v-for="(mediaContent, mediaType) in response.content" :key="mediaType" class="sub-card p-3 rounded space-y-3">
+                          <div>
+                            <label class="text-xs opacity-75 block mb-1">Schema $ref (Drag & Drop or Type)</label>
+                            <input :value="mediaContent.schema && mediaContent.schema.$ref ? mediaContent.schema.$ref : ''" 
+                                   @input="setSchemaRef(mediaContent, 'schema', $event.target.value)" 
+                                   placeholder="#/components/schemas/..." 
+                                   @drop.prevent="setSchemaRef(mediaContent, 'schema', $event.dataTransfer.getData('text/plain'))" 
+                                   @dragover.prevent />
+                          </div>
+
+                          <!-- Multiple Examples for Response -->
+                          <div class="border-t border-gray-600/20 pt-2">
+                            <div class="flex justify-between items-center mb-2">
+                              <h5 class="font-bold text-xs uppercase opacity-80">Response Examples (One or More)</h5>
+                              <button @click="addExample(mediaContent)" class="btn btn-green text-xs">+ Add Example</button>
+                            </div>
+                            <div v-if="!mediaContent.examples || Object.keys(mediaContent.examples).length === 0" class="text-xs opacity-60 italic py-1">
+                              No examples defined.
+                            </div>
+                            <div v-for="(exObj, exName) in mediaContent.examples" :key="exName" class="sub-card p-3 rounded mb-2 space-y-2 relative border border-gray-600/20">
+                              <button class="absolute top-2 right-2 text-red-400 font-bold hover:scale-110 text-xs" @click="deleteExample(mediaContent, exName)">×</button>
+                              <div class="flex gap-2">
+                                <div class="w-1/2">
+                                  <label class="text-xs opacity-75 block mb-1">Example Key Name</label>
+                                  <input :value="exName" @change="renameKey(mediaContent.examples, exName, $event.target.value); trigger()" class="font-bold text-blue-400">
+                                </div>
+                                <div class="w-1/2">
+                                  <label class="text-xs opacity-75 block mb-1">Summary</label>
+                                  <input v-model="exObj.summary" @input="trigger" placeholder="Short summary">
+                                </div>
+                              </div>
+                              <div>
+                                <label class="text-xs opacity-75 block mb-1">Description</label>
+                                <input v-model="exObj.description" @input="trigger" placeholder="Optional description">
+                              </div>
+                              <div>
+                                <label class="text-xs opacity-75 block mb-1">Value (JSON format)</label>
+                                <textarea :value="typeof exObj.value === 'object' ? JSON.stringify(exObj.value, null, 2) : exObj.value" 
+                                          @input="updateExampleJson(exObj, $event.target.value)" 
+                                          rows="4" 
+                                          class="raw-textarea rounded sub-card" 
+                                          placeholder='{ "id": 1, "name": "Success Response" }'></textarea>
+                                <span v-if="exObj._jsonError" class="text-red-400 text-xs font-mono mt-1 block">⚠️ {{ exObj._jsonError }}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- SCHEMA EDITOR -->
+            <template v-if="selectedItem.type === 'schema'">
+              <div class="flex justify-between items-center pb-2 border-b border-gray-600/30">
+                <span class="text-xs font-bold uppercase opacity-75">{{ activeTab }} View</span>
+                <div class="inline-flex rounded bg-black/10 p-0.5 border border-gray-600/30 text-xs">
+                  <button @click="setTabMode(activeTab, 'visual')" class="px-2 py-0.5 rounded font-medium" :class="tabViewModes[activeTab] !== 'json' ? 'bg-blue-600 text-white' : 'opacity-60'">Visual</button>
+                  <button @click="setTabMode(activeTab, 'json')" class="px-2 py-0.5 rounded font-medium" :class="tabViewModes[activeTab] === 'json' ? 'bg-blue-600 text-white' : 'opacity-60'">JSON</button>
+                </div>
+              </div>
+
+              <div v-if="tabViewModes[activeTab] === 'json'" class="h-96 flex flex-col">
+                <span v-if="tabJsonErrors[activeTab]" class="text-red-400 text-xs mb-1 font-mono">⚠️ {{ tabJsonErrors[activeTab] }}</span>
+                <textarea v-model="tabJsonStrings[activeTab]" @input="updateTabFromJson(activeTab)" class="raw-textarea flex-1 rounded-lg sub-card" spellcheck="false"></textarea>
+              </div>
+
+              <div v-else class="space-y-4">
+                <div v-if="activeTab === 'Schema'" class="space-y-4">
+                  <div class="flex gap-4">
+                    <div class="w-1/2">
+                      <label class="text-xs opacity-75 block mb-1">Type</label>
+                      <select v-model="selectedItem.data.type" @change="trigger">
+                        <option value="object">object</option><option value="string">string</option><option value="integer">integer</option>
+                        <option value="number">number</option><option value="array">array</option><option value="boolean">boolean</option>
+                      </select>
+                    </div>
+                    <div class="w-1/2">
+                      <label class="text-xs opacity-75 block mb-1">Format</label>
+                      <input v-model="selectedItem.data.format" placeholder="date-time, email" @input="trigger">
+                    </div>
+                  </div>
+                  <div><label class="text-xs opacity-75 block mb-1">Description</label><textarea v-model="selectedItem.data.description" rows="3" @input="trigger"></textarea></div>
+                </div>
+
+                <div v-if="activeTab === 'Properties'">
+                  <div v-if="selectedItem.data.type !== 'object'" class="p-4 sub-card rounded-lg text-center opacity-75 text-sm">
+                    Properties are only applicable for "object" type schemas.
+                  </div>
+                  <div v-else class="space-y-4">
+                    <div class="flex justify-between items-center">
+                      <h3 class="font-bold text-sm">Object Properties</h3>
+                      <button @click="addProperty" class="btn btn-green">+ Add Property</button>
+                    </div>
+                    <div class="space-y-3">
+                      <div v-for="(prop, propName) in selectedItem.data.properties" :key="propName" class="sub-card p-4 rounded-lg">
+                        <div class="flex gap-3 mb-3">
+                          <div class="w-1/3"><label class="text-xs opacity-75 block mb-1">Name</label><input :value="propName" @change="renameKey(selectedItem.data.properties, propName, $event.target.value); trigger()" class="font-bold text-blue-400"></div>
+                          <div class="w-1/3">
+                            <label class="text-xs opacity-75 block mb-1">Type</label>
+                            <select v-model="prop.type" @change="trigger" :disabled="!!prop.$ref">
+                              <option value="string">string</option><option value="integer">integer</option><option value="number">number</option>
+                              <option value="boolean">boolean</option><option value="array">array</option><option value="object">object</option>
+                            </select>
+                          </div>
+                          <div class="w-1/3 flex items-end justify-end"><button @click="delete selectedItem.data.properties[propName]; trigger()" class="text-red-400 text-xs font-bold">Delete</button></div>
+                        </div>
+                        <div>
+                          <label class="text-xs opacity-75 block mb-1">Link Schema $ref (Drag & Drop or Type)</label>
+                          <input :value="prop.$ref ? prop.$ref : ''" 
+                                 @input="setSchemaRef(selectedItem.data.properties, propName, $event.target.value)" 
+                                 placeholder="#/components/schemas/..." 
+                                 @drop.prevent="setSchemaRef(selectedItem.data.properties, propName, $event.dataTransfer.getData('text/plain'))" 
+                                 @dragover.prevent />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="activeTab === 'Composition'" class="space-y-4">
+                  <h3 class="font-bold text-sm">Composition (allOf, anyOf, oneOf)</h3>
+                  <div><label class="text-xs opacity-75 block mb-1">allOf (JSON Array)</label><textarea v-model="compositionAllOf" @input="updateComposition('allOf')" rows="3"></textarea></div>
+                  <div><label class="text-xs opacity-75 block mb-1">anyOf (JSON Array)</label><textarea v-model="compositionAnyOf" @input="updateComposition('anyOf')" rows="3"></textarea></div>
+                </div>
+
+                <div v-if="activeTab === 'Validation'" class="space-y-4">
+                  <h3 class="font-bold text-sm">Validation Constraints</h3>
+                  <div class="grid grid-cols-2 gap-4">
+                    <div><label class="text-xs opacity-75 block mb-1">Minimum</label><input type="number" v-model.number="selectedItem.data.minimum" @input="trigger"></div>
+                    <div><label class="text-xs opacity-75 block mb-1">Maximum</label><input type="number" v-model.number="selectedItem.data.maximum" @input="trigger"></div>
+                  </div>
+                  <div><label class="text-xs opacity-75 block mb-1">Enum (Comma separated)</label><input v-model="schemaEnumString" @input="updateSchemaEnum"></div>
+                </div>
+
+                <div v-if="activeTab === 'Examples'" class="space-y-4">
+                  <h3 class="font-bold text-sm">Example Object</h3>
+                  <textarea v-model="schemaExampleString" @input="updateSchemaExample" rows="6" placeholder="JSON example..."></textarea>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL 3: SWAGGER PREVIEW -->
+      <div v-show="panels.preview" id="panel-preview" class="panel flex flex-col h-full overflow-hidden">
+        <div class="panel-header px-4 py-2.5 text-sm font-semibold border-b flex items-center justify-between shrink-0">
+          <span>Swagger Preview</span>
+        </div>
+        <div class="flex-1 overflow-y-auto">
+          <div id="swagger-ui-container"></div>
+        </div>
+      </div>
+
+      <!-- PANEL 4: RAW CODE -->
+      <div v-show="panels.raw" id="panel-raw" class="panel flex flex-col h-full overflow-hidden shrink-0">
+        <div class="panel-header px-3 py-2 text-sm font-semibold flex items-center justify-between shrink-0">
+          <div class="flex items-center gap-1 p-0.5 rounded border border-gray-600/30 bg-black/10">
+            <button @click="rawViewType = 'yaml'" class="px-3 py-1 text-xs rounded font-medium" :class="rawViewType === 'yaml' ? 'bg-blue-600 text-white' : 'opacity-60'">YAML</button>
+            <button @click="rawViewType = 'json'" class="px-3 py-1 text-xs rounded font-medium" :class="rawViewType === 'json' ? 'bg-blue-600 text-white' : 'opacity-60'">JSON</button>
+          </div>
+          <span v-if="rawError" class="text-red-400 text-xs font-mono truncate max-w-[180px]">⚠️ {{ rawError }}</span>
+        </div>
+        <div class="flex-1 overflow-hidden relative">
+          <textarea v-show="rawViewType === 'yaml'" v-model="rawYaml" @input="updateFromRaw('yaml')" class="raw-textarea" spellcheck="false"></textarea>
+          <textarea v-show="rawViewType === 'json'" v-model="rawJson" @input="updateFromRaw('json')" class="raw-textarea" spellcheck="false"></textarea>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Context Menu -->
+    <div v-if="contextMenu.visible" class="context-menu" :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }">
+      <div v-if="contextMenu.type === 'paths'" class="context-menu-item" @click="createNewPath">Add New Path</div>
+      <div v-if="contextMenu.type === 'schemas'" class="context-menu-item" @click="createNewSchema">Add New Schema</div>
+      <div v-if="['pathItem', 'schemaItem'].includes(contextMenu.type)">
+        <div class="context-menu-item text-red-400" @click="deleteItem(contextMenu.type, contextMenu.target)">Delete {{ contextMenu.target }}</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const { createApp, ref, reactive, computed, onMounted, watch, nextTick } = Vue;
+
+    const defaultSpec = {
+      openapi: "3.1.0",
+      info: { title: "E-Commerce API", version: "1.0.0", description: "Fully functional OpenAPI editor with modular tab JSON editors." },
+      servers: [{ url: "https://api.example.com/v1", description: "Production Server" }],
+      paths: {
+        "/products": {
+          get: {
+            summary: "List products",
+            operationId: "listProducts",
+            parameters: [{ name: "limit", in: "query", description: "Max results", required: false, schema: { type: "integer", maximum: 100 } }],
+            responses: { 
+              "200": { 
+                description: "Successful response",
+                content: {
+                  "application/json": {
+                    schema: { $ref: "#/components/schemas/Product" },
+                    examples: {
+                      defaultProduct: {
+                        summary: "Sample Product Response",
+                        value: { id: 1, name: "Wireless Headphones" }
+                      }
+                    }
+                  }
+                }
+              } 
+            }
+          }
+        }
+      },
+      components: {
+        schemas: { 
+          Product: { 
+            type: "object", 
+            properties: { id: { type: "integer" }, name: { type: "string" } }, 
+            required: ["id", "name"]
+          } 
+        },
+        securitySchemes: { BearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" } }
+      }
+    };
+
+    createApp({
+      setup() {
+        const openapi = reactive(JSON.parse(localStorage.getItem('openapi_spec_adv_pro_v12')) || defaultSpec);
+        
+        // Theme reactivity & body class synchronization
+        const theme = ref(localStorage.getItem('openapi_theme') || 'dark');
+        watch(theme, (newTheme) => {
+          document.body.className = `theme-${newTheme}`;
+          localStorage.setItem('openapi_theme', newTheme);
+        }, { immediate: true });
+
+        const searchQuery = ref('');
+        const saveStatus = ref('');
+        const treeState = reactive({ paths: true, schemas: true });
+        
+        const panels = reactive({ explorer: true, editor: true, preview: true, raw: true });
+        
+        let splitInstance = null;
+        const initSplit = () => {
+          if (splitInstance) { try { splitInstance.destroy(); } catch(e){} }
+          nextTick(() => {
+            const selectors = [];
+            if (panels.explorer) selectors.push('#panel-explorer');
+            if (panels.editor) selectors.push('#panel-editor');
+            if (panels.preview) selectors.push('#panel-preview');
+            if (panels.raw) selectors.push('#panel-raw');
+
+            if (selectors.length > 1) {
+              splitInstance = Split(selectors, {
+                direction: 'horizontal',
+                gutterSize: 6,
+                minSize: 180,
+                cursor: 'col-resize'
+              });
+            }
+          });
+        };
+
+        const togglePanel = (p) => { 
+          panels[p] = !panels[p]; 
+          initSplit();
+          if(p === 'preview' && panels.preview) nextTick(() => renderSwagger()); 
+        };
+
+        const selectedItem = reactive({ type: null, data: null, id: null, meta: {} });
+        const activeTab = ref('General');
+        const editorViewMode = ref('visual'); 
+        const componentJsonString = ref('');
+        const componentJsonError = ref('');
+
+        const tabViewModes = reactive({}); 
+        const tabJsonStrings = reactive({}); 
+        const tabJsonErrors = reactive({}); 
+
+        const rawViewType = ref('yaml');
+        const rawYaml = ref('');
+        const rawJson = ref('');
+        const rawError = ref('');
+
+        const schemaEnumString = ref('');
+        const schemaExampleString = ref('');
+        const compositionAllOf = ref('');
+        const compositionAnyOf = ref('');
+
+        const contextMenu = reactive({ visible: false, x: 0, y: 0, type: '', target: null });
+
+        if (!openapi.components) openapi.components = {};
+        if (!openapi.components.schemas) openapi.components.schemas = {};
+        if (!openapi.components.securitySchemes) openapi.components.securitySchemes = {};
+        if (!openapi.paths) openapi.paths = {};
+        if (!openapi.servers) openapi.servers = [];
+
+        const filteredPaths = computed(() => {
+          if (!searchQuery.value) return openapi.paths;
+          const res = {}; Object.keys(openapi.paths).filter(k => k.toLowerCase().includes(searchQuery.value.toLowerCase())).forEach(k => res[k] = openapi.paths[k]);
+          return res;
+        });
+
+        const filteredSchemas = computed(() => {
+          if (!searchQuery.value) return openapi.components.schemas;
+          const res = {}; Object.keys(openapi.components.schemas).filter(k => k.toLowerCase().includes(searchQuery.value.toLowerCase())).forEach(k => res[k] = openapi.components.schemas[k]);
+          return res;
+        });
+
+        const availableTabs = computed(() => {
+          if (selectedItem.type === 'operation') return ['General', 'Parameters', 'Request Body', 'Responses'];
+          if (selectedItem.type === 'schema') return ['Schema', 'Properties', 'Composition', 'Validation', 'Examples'];
+          return [];
+        });
+
+        const selectItem = (type, data, id = null, meta = {}) => {
+          selectedItem.type = type; selectedItem.data = data; selectedItem.id = id; selectedItem.meta = meta;
+          editorViewMode.value = 'visual';
+          
+          const tabs = availableTabs.value;
+          if (tabs.length > 0) {
+            activeTab.value = tabs[0];
+            tabs.forEach(t => { tabViewModes[t] = 'visual'; });
+          }
+
+          try { componentJsonString.value = JSON.stringify(data, null, 2); } catch(e) { componentJsonString.value = '{}'; }
+          componentJsonError.value = '';
+
+          if (type === 'schema') {
+            if (!data.type) data.type = 'object';
+            if (data.type === 'object' && !data.properties) data.properties = {};
+            schemaEnumString.value = Array.isArray(data.enum) ? data.enum.join(', ') : '';
+            schemaExampleString.value = data.example !== undefined ? JSON.stringify(data.example, null, 2) : '';
+            compositionAllOf.value = data.allOf ? JSON.stringify(data.allOf, null, 2) : '';
+            compositionAnyOf.value = data.anyOf ? JSON.stringify(data.anyOf, null, 2) : '';
+          }
+        };
+
+        const setEditorMode = (mode) => {
+          editorViewMode.value = mode;
+          if (mode === 'json') {
+            try { componentJsonString.value = JSON.stringify(selectedItem.data, null, 2); } catch(e) {}
+          }
+        };
+
+        const setTabMode = (tab, mode) => {
+          tabViewModes[tab] = mode;
+          if (mode === 'json') {
+            let subData = {};
+            if (selectedItem.type === 'operation') {
+              if (tab === 'General') subData = { summary: selectedItem.data.summary, description: selectedItem.data.description, operationId: selectedItem.data.operationId, deprecated: selectedItem.data.deprecated };
+              else if (tab === 'Parameters') subData = selectedItem.data.parameters || [];
+              else if (tab === 'Request Body') subData = selectedItem.data.requestBody || {};
+              else if (tab === 'Responses') subData = selectedItem.data.responses || {};
+            } else if (selectedItem.type === 'schema') {
+              if (tab === 'Schema') subData = { type: selectedItem.data.type, format: selectedItem.data.format, description: selectedItem.data.description };
+              else if (tab === 'Properties') subData = selectedItem.data.properties || {};
+              else if (tab === 'Composition') subData = { allOf: selectedItem.data.allOf, anyOf: selectedItem.data.anyOf };
+              else if (tab === 'Validation') subData = { minimum: selectedItem.data.minimum, maximum: selectedItem.data.maximum };
+              else if (tab === 'Examples') subData = { example: selectedItem.data.example };
+            }
+            tabJsonStrings[tab] = JSON.stringify(subData, null, 2);
+            tabJsonErrors[tab] = '';
+          }
+        };
+
+        const updateTabFromJson = (tab) => {
+          try {
+            const parsed = JSON.parse(tabJsonStrings[tab]);
+            if (selectedItem.type === 'operation') {
+              if (tab === 'General') Object.assign(selectedItem.data, parsed);
+              else if (tab === 'Parameters') selectedItem.data.parameters = parsed;
+              else if (tab === 'Request Body') selectedItem.data.requestBody = parsed;
+              else if (tab === 'Responses') selectedItem.data.responses = parsed;
+            } else if (selectedItem.type === 'schema') {
+              if (tab === 'Schema') Object.assign(selectedItem.data, parsed);
+              else if (tab === 'Properties') selectedItem.data.properties = parsed;
+              else if (tab === 'Composition') {
+                if (parsed.allOf) selectedItem.data.allOf = parsed.allOf; else delete selectedItem.data.allOf;
+                if (parsed.anyOf) selectedItem.data.anyOf = parsed.anyOf; else delete selectedItem.data.anyOf;
+              } else if (tab === 'Validation') {
+                if (parsed.minimum !== undefined) selectedItem.data.minimum = parsed.minimum; else delete selectedItem.data.minimum;
+                if (parsed.maximum !== undefined) selectedItem.data.maximum = parsed.maximum; else delete selectedItem.data.maximum;
+              } else if (tab === 'Examples') {
+                if (parsed.example !== undefined) selectedItem.data.example = parsed.example; else delete selectedItem.data.example;
+              }
+            }
+            tabJsonErrors[tab] = '';
+            trigger();
+          } catch(e) {
+            tabJsonErrors[tab] = 'Invalid JSON: ' + e.message;
+          }
+        };
+
+        const updateComponentFromJson = () => {
+          try {
+            const parsed = JSON.parse(componentJsonString.value);
+            Object.keys(selectedItem.data).forEach(k => delete selectedItem.data[k]);
+            Object.assign(selectedItem.data, parsed);
+            componentJsonError.value = '';
+            trigger();
+          } catch(e) {
+            componentJsonError.value = 'Invalid JSON: ' + e.message;
+          }
+        };
+
+        const toggleTree = (node) => treeState[node] = !treeState[node];
+
+        const getEditorTitle = () => {
+          const m = { 'info': 'API Information', 'servers': 'Servers Config', 'securitySchemes': 'Security Schemes', 'path': `Path: ${selectedItem.id}`};
+          if (m[selectedItem.type]) return m[selectedItem.type];
+          if (selectedItem.type === 'operation') return `${selectedItem.meta.method.toUpperCase()} ${selectedItem.meta.path}`;
+          if (selectedItem.type === 'schema') return `Schema: ${selectedItem.id}`;
+          return '';
+        };
+
+        const methodColor = (method) => {
+          const c = { get: 'text-blue-400', post: 'text-green-400', put: 'text-yellow-400', delete: 'text-red-400', patch: 'text-purple-400' }; return c[method] || '';
+        };
+
+        const renameKey = (obj, oldKey, newKey) => { if (oldKey === newKey || !newKey) return; obj[newKey] = obj[oldKey]; delete obj[oldKey]; };
+        const addServer = () => { openapi.servers.push({ url: "https://newserver.com" }); trigger(); };
+        const addSecurityScheme = () => { openapi.components.securitySchemes[`Auth_${Date.now().toString().slice(-4)}`] = { type: 'http', scheme: 'bearer' }; trigger(); };
+        const toggleMethod = (path, method) => { if (openapi.paths[path][method]) delete openapi.paths[path][method]; else openapi.paths[path][method] = { summary: `New ${method}`, responses: { "200": { description: "OK" } } }; trigger(); };
+        const addParameter = () => { if (!selectedItem.data.parameters) selectedItem.data.parameters = []; selectedItem.data.parameters.push({ name: 'param', in: 'query', schema: { type: 'string' } }); trigger(); };
+        const initRequestBody = () => { selectedItem.data.requestBody = { content: { "application/json": { schema: { type: "object" } } } }; trigger(); };
+        const initResponseContent = (response) => { response.content = { "application/json": { schema: { type: "object" } } }; trigger(); };
+        const addResponse = () => { const code = prompt("HTTP Status", "200"); if (code) { selectedItem.data.responses[code] = { description: "OK" }; trigger(); } };
+        const addProperty = () => { if (!selectedItem.data.properties) selectedItem.data.properties = {}; selectedItem.data.properties['prop' + Date.now().toString().slice(-4)] = { type: 'string' }; trigger(); };
+
+        const setSchemaRef = (parentObj, key, refVal) => {
+          const cleanRef = refVal ? refVal.trim() : '';
+          if (cleanRef) {
+            parentObj[key] = { $ref: cleanRef };
+          } else {
+            delete parentObj[key];
+          }
+          trigger();
+        };
+
+        const addExample = (mediaContent) => {
+          if (!mediaContent.examples) mediaContent.examples = {};
+          const key = 'example' + (Object.keys(mediaContent.examples).length + 1);
+          mediaContent.examples[key] = {
+            summary: 'Sample Example',
+            value: { id: 1, name: "Sample Item" }
+          };
+          trigger();
+        };
+
+        const deleteExample = (mediaContent, exampleName) => {
+          if (mediaContent.examples) {
+            delete mediaContent.examples[exampleName];
+            if (Object.keys(mediaContent.examples).length === 0) {
+              delete mediaContent.examples;
+            }
+            trigger();
+          }
+        };
+
+        const updateExampleJson = (exObj, rawText) => {
+          try {
+            exObj.value = JSON.parse(rawText);
+            exObj._jsonError = '';
+          } catch (e) {
+            exObj.value = rawText;
+            exObj._jsonError = 'Invalid JSON: ' + e.message;
+          }
+          trigger();
+        };
+
+        const updateSchemaEnum = () => {
+          if (!schemaEnumString.value.trim()) delete selectedItem.data.enum;
+          else selectedItem.data.enum = schemaEnumString.value.split(',').map(s => s.trim()).filter(Boolean);
+          trigger();
+        };
+        const updateSchemaExample = () => {
+          try {
+            if (!schemaExampleString.value.trim()) delete selectedItem.data.example;
+            else selectedItem.data.example = JSON.parse(schemaExampleString.value);
+            trigger();
+          } catch(e) {}
+        };
+        const updateComposition = (field) => {
+          try {
+            const val = field === 'allOf' ? compositionAllOf.value : compositionAnyOf.value;
+            if (!val.trim()) delete selectedItem.data[field];
+            else selectedItem.data[field] = JSON.parse(val);
+            trigger();
+          } catch(e) {}
+        };
+
+        const dragStart = (e, refString) => { e.dataTransfer.setData('text/plain', refString); };
+
+        const openContext = (e, type, target = null) => { contextMenu.visible = true; contextMenu.x = e.clientX; contextMenu.y = e.clientY; contextMenu.type = type; contextMenu.target = target; };
+        const closeContextMenu = () => contextMenu.visible = false;
+        const createNewPath = () => { const p = prompt('Path name', '/new'); if (p) { openapi.paths[p] = { get: { summary: 'New', responses: {'200': {description: 'OK'}} } }; selectItem('path', openapi.paths[p], p); trigger(); } closeContextMenu(); };
+        const createNewSchema = () => { const n = prompt('Schema name', 'Model'); if (n) { openapi.components.schemas[n] = { type: 'object', properties: {} }; selectItem('schema', openapi.components.schemas[n], n); trigger(); } closeContextMenu(); };
+        const deleteItem = (type, target) => { if (confirm(`Delete ${target}?`)) { if (type === 'pathItem') delete openapi.paths[target]; if (type === 'schemaItem') delete openapi.components.schemas[target]; selectedItem.type = null; trigger(); } closeContextMenu(); };
+
+        let previewTimeout;
+        const trigger = () => {
+          saveToLocal();
+          clearTimeout(previewTimeout);
+          previewTimeout = setTimeout(() => {
+            updateRawCodeViews();
+            renderSwagger();
+          }, 400);
+        };
+
+        const updateRawCodeViews = () => {
+          const copy = JSON.parse(JSON.stringify(openapi));
+          rawJson.value = JSON.stringify(copy, null, 2);
+          rawYaml.value = jsyaml.dump(copy);
+        };
+
+        let rawUpdateTimeout;
+        const updateFromRaw = (format) => {
+          clearTimeout(rawUpdateTimeout);
+          rawUpdateTimeout = setTimeout(() => {
+            try {
+              const parsed = format === 'yaml' ? jsyaml.load(rawYaml.value) : JSON.parse(rawJson.value);
+              if (parsed && typeof parsed === 'object') {
+                Object.keys(openapi).forEach(k => delete openapi[k]);
+                Object.assign(openapi, parsed);
+                rawError.value = '';
+                saveToLocal();
+                renderSwagger();
+              }
+            } catch(e) { rawError.value = e.message; }
+          }, 600);
+        };
+
+        // Helper to inline $ref references for Swagger UI preview (bypassing local file:// fetch resolver errors)
+        const getDereferencedSpec = (spec) => {
+          try {
+            const clone = JSON.parse(JSON.stringify(spec));
+            const resolveRef = (refStr) => {
+              if (!refStr || !refStr.startsWith('#/components/schemas/')) return null;
+              const schemaName = refStr.replace('#/components/schemas/', '');
+              return clone.components && clone.components.schemas ? clone.components.schemas[schemaName] : null;
+            };
+
+            const traverse = (obj) => {
+              if (!obj || typeof obj !== 'object') return;
+              for (const key in obj) {
+                if (key === '$ref' && typeof obj.$ref === 'string') {
+                  const resolved = resolveRef(obj.$ref);
+                  if (resolved) {
+                    const derefCopy = JSON.parse(JSON.stringify(resolved));
+                    delete obj.$ref;
+                    Object.assign(obj, derefCopy);
+                  }
+                } else {
+                  traverse(obj[key]);
+                }
+              }
+            };
+
+            traverse(clone);
+            return clone;
+          } catch(e) {
+            return spec;
+          }
+        };
+
+        const renderSwagger = () => {
+          if (!panels.preview) return;
+          try {
+            const specCopy = JSON.parse(JSON.stringify(openapi));
+            const safeSpec = getDereferencedSpec(specCopy);
+            SwaggerUIBundle({
+              spec: safeSpec,
+              dom_id: '#swagger-ui-container',
+              presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+              layout: "BaseLayout",
+              validatorUrl: null
+            });
+          } catch(e) {}
+        };
+
+        const saveToLocal = () => { localStorage.setItem('openapi_spec_adv_pro_v12', JSON.stringify(openapi)); saveStatus.value = 'Saved ' + new Date().toLocaleTimeString(); };
+        const clearSpec = () => { if(confirm("Reset spec?")) { localStorage.removeItem('openapi_spec_adv_pro_v12'); location.reload(); } };
+        const exportSpec = (format) => {
+          const content = format === 'yaml' ? jsyaml.dump(JSON.parse(JSON.stringify(openapi))) : JSON.stringify(openapi, null, 2);
+          const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], {type: "text/plain"})); a.download = `openapi.${format}`; a.click();
+        };
+        const importSpec = (e) => {
+          const f = e.target.files[0]; if (!f) return;
+          const r = new FileReader(); r.onload = (evt) => {
+            try {
+              const parsed = f.name.endsWith('.json') ? JSON.parse(evt.target.result) : jsyaml.load(evt.target.result);
+              Object.keys(openapi).forEach(k => delete openapi[k]);
+              Object.assign(openapi, parsed);
+              trigger();
+            } catch(err) { alert(err.message); }
+          };
+          r.readAsText(f);
+        };
+
+        onMounted(() => {
+          initSplit();
+          updateRawCodeViews();
+          renderSwagger();
+        });
+
+        return {
+          openapi, theme, searchQuery, saveStatus, treeState, panels, togglePanel, selectedItem, activeTab, editorViewMode,
+          tabViewModes, tabJsonStrings, tabJsonErrors, componentJsonString, componentJsonError, rawViewType, rawYaml, rawJson, rawError, contextMenu,
+          schemaEnumString, schemaExampleString, compositionAllOf, compositionAnyOf,
+          filteredPaths, filteredSchemas, availableTabs,
+          selectItem, setEditorMode, setTabMode, updateTabFromJson, toggleTree, toggleMethod, addProperty, addParameter, addResponse, initRequestBody, initResponseContent, addServer, addSecurityScheme, renameKey,
+          setSchemaRef, addExample, deleteExample, updateExampleJson,
+          updateComponentFromJson, updateSchemaEnum, updateSchemaExample, updateComposition,
+          openContext, closeContextMenu, createNewPath, createNewSchema, deleteItem,
+          dragStart, trigger, updateFromRaw, exportSpec, importSpec, clearSpec, getEditorTitle, methodColor
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
