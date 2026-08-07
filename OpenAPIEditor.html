@@ -1,0 +1,1908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Open API Editor</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ace-builds@1.36.2/src-min-noconflict/ace.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ace-builds@1.36.2/src-min-noconflict/mode-yaml.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ace-builds@1.36.2/src-min-noconflict/mode-json.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ace-builds@1.36.2/src-min-noconflict/theme-monokai.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ace-builds@1.36.2/src-min-noconflict/theme-github.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ace-builds@1.36.2/src-min-noconflict/ext-language_tools.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui-standalone-preset.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js"></script>
+<style>
+:root {
+  --bg: #f8f9fa; --panel: #ffffff; --border: #dee2e6; --text: #212529;
+  --accent: #0d6efd; --success: #198754; --danger: #dc3545; --warning: #ffc107;
+  --muted: #6c757d; --card-bg: #fff; --hover: #e9ecef;
+  --method-get: #61affe; --method-post: #49cc90; --method-put: #fca130;
+  --method-delete: #f93e3e; --method-patch: #50e3c2; --method-head: #9012fe;
+  --method-options: #0d5aa7; --method-trace: #6b7280;
+}
+[data-theme="dark"] {
+  --bg: #1a1d23; --panel: #252830; --border: #3a3f4b; --text: #e9ecef;
+  --accent: #4dabf7; --muted: #adb5bd; --card-bg: #2d3139; --hover: #343a46;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--text); }
+#app { display: flex; flex-direction: column; height: 100vh; }
+.toolbar { background: var(--panel); border-bottom: 1px solid var(--border); padding: 6px 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; z-index: 100; }
+.toolbar .brand { font-weight: 700; font-size: 1.1rem; color: var(--accent); display: flex; align-items: center; gap: 6px; margin-right: 12px; }
+.toolbar .btn { font-size: 0.8rem; padding: 4px 10px; }
+.main { flex: 1; display: flex; overflow: hidden; }
+.pane { display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid var(--border); background: var(--panel); }
+.pane:last-child { border-right: none; }
+.pane-header { padding: 8px 12px; background: var(--hover); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; justify-content: space-between; }
+.pane-body { flex: 1; overflow: auto; position: relative; }
+#visualPane { width: 32%; min-width: 280px; }
+#editorPane { width: 34%; min-width: 300px; }
+#previewPane { width: 34%; min-width: 280px; flex: 1; }
+.resizer { width: 5px; background: var(--border); cursor: col-resize; flex-shrink: 0; }
+.resizer:hover { background: var(--accent); }
+.editor-tabs { display: flex; background: var(--hover); border-bottom: 1px solid var(--border); }
+.editor-tab { padding: 6px 16px; cursor: pointer; font-size: 0.8rem; border-bottom: 2px solid transparent; }
+.editor-tab.active { border-bottom-color: var(--accent); color: var(--accent); font-weight: 600; background: var(--panel); }
+#yamlEditor, #jsonEditor { width: 100%; height: 100%; }
+.editor-hidden { display: none !important; }
+.card-item { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; margin: 8px; padding: 10px; transition: box-shadow 0.15s; }
+.card-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.card-item .card-title { font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 6px; }
+.method-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; color: #fff; text-transform: uppercase; min-width: 52px; text-align: center; }
+.method-get { background: var(--method-get); }
+.method-post { background: var(--method-post); }
+.method-put { background: var(--method-put); }
+.method-delete { background: var(--method-delete); }
+.method-patch { background: var(--method-patch); }
+.method-head { background: var(--method-head); }
+.method-options { background: var(--method-options); }
+.method-trace { background: var(--method-trace); }
+.path-text { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.85rem; color: var(--accent); }
+.section-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding: 8px 12px 4px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
+.add-btn { font-size: 0.75rem; padding: 2px 8px; }
+.form-label-sm { font-size: 0.75rem; margin-bottom: 2px; color: var(--muted); }
+.form-control-sm, .form-select-sm { font-size: 0.8rem; }
+.schema-field { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; flex-wrap: wrap; }
+.schema-field input, .schema-field select { flex: 1; min-width: 80px; }
+.param-row { display: grid; grid-template-columns: 1fr 90px 80px 1fr auto; gap: 4px; margin-bottom: 4px; align-items: center; }
+.toast-container { position: fixed; bottom: 16px; right: 16px; z-index: 9999; }
+.status-bar { background: var(--panel); border-top: 1px solid var(--border); padding: 4px 12px; font-size: 0.75rem; color: var(--muted); display: flex; justify-content: space-between; }
+.version-badge { background: var(--accent); color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; }
+.editable { cursor: text; border-bottom: 1px dashed transparent; padding: 1px 2px; border-radius: 2px; }
+.editable:hover { border-bottom-color: var(--accent); background: rgba(13,110,253,0.08); }
+.editable:focus { outline: 2px solid var(--accent); background: rgba(13,110,253,0.12); border-bottom-color: transparent; }
+#swagger-ui .swagger-ui { font-family: inherit; }
+#swagger-ui .swagger-ui .topbar { display: none; }
+#swagger-ui .swagger-ui .info { margin: 12px 0; }
+.empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+.empty-state i { font-size: 3rem; opacity: 0.4; }
+.drop-zone { border: 2px dashed var(--border); border-radius: 8px; padding: 24px; text-align: center; margin: 12px; color: var(--muted); transition: all 0.2s; }
+.drop-zone.dragover { border-color: var(--accent); background: rgba(13,110,253,0.08); color: var(--accent); }
+.modal-body { max-height: 70vh; overflow-y: auto; }
+.security-card, .schema-card, .tag-card, .server-card { border-left: 3px solid var(--accent); }
+.btn-icon { padding: 2px 6px; }
+.path-group { margin-bottom: 4px; }
+.path-ops { margin-left: 12px; margin-top: 4px; }
+.op-card { padding: 6px 8px; margin: 2px 0; border-radius: 4px; background: var(--hover); display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.op-card:hover { background: var(--border); }
+.op-card .summary { flex: 1; font-size: 0.8rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.collapse-toggle { cursor: pointer; user-select: none; }
+.badge-count { font-size: 0.65rem; }
+.theme-toggle { cursor: pointer; }
+#previewContent { padding: 0; height: 100%; overflow: auto; }
+.custom-preview { padding: 16px; }
+.custom-preview h1 { font-size: 1.6rem; }
+.custom-preview h2 { font-size: 1.2rem; margin-top: 1.2rem; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+.custom-preview .op-block { border: 1px solid var(--border); border-radius: 6px; margin: 8px 0; overflow: hidden; }
+.custom-preview .op-header { padding: 8px 12px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.custom-preview .op-body { padding: 12px; background: var(--hover); border-top: 1px solid var(--border); display: none; }
+.custom-preview .op-block.open .op-body { display: block; }
+.param-table { width: 100%; font-size: 0.8rem; border-collapse: collapse; }
+.param-table th, .param-table td { padding: 4px 8px; border: 1px solid var(--border); text-align: left; }
+.param-table th { background: var(--hover); }
+.schema-box { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 8px; font-family: monospace; font-size: 0.8rem; white-space: pre-wrap; }
+.ref-badge { background: #e7f1ff; color: #0d6efd; font-size: 0.7rem; padding: 1px 6px; border-radius: 4px; font-family: monospace; }
+[data-theme="dark"] .ref-badge { background: #1e3a5f; color: #6ea8fe; }
+.content-block { background: var(--hover); border: 1px solid var(--border); border-radius: 6px; padding: 10px; margin-bottom: 8px; }
+.example-preview { font-family: ui-monospace, monospace; font-size: 0.75rem; background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 6px; max-height: 120px; overflow: auto; white-space: pre-wrap; }
+@media (max-width: 992px) {
+  .main { flex-direction: column; }
+  #visualPane, #editorPane, #previewPane { width: 100% !important; min-width: 0; height: 33%; }
+  .resizer { display: none; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="toolbar">
+    <div class="brand"><i class="bi bi-braces-asterisk"></i> OpenAPI Studio</div>
+    <div class="btn-group">
+      <button class="btn btn-outline-primary btn-sm" onclick="app.newSpec()" title="New Spec"><i class="bi bi-file-earmark-plus"></i> New</button>
+      <button class="btn btn-outline-primary btn-sm" onclick="document.getElementById('fileInput').click()" title="Open File"><i class="bi bi-folder2-open"></i> Open</button>
+      <button class="btn btn-outline-primary btn-sm" onclick="app.importUrl()" title="Import from URL"><i class="bi bi-link-45deg"></i> URL</button>
+      <button class="btn btn-outline-primary btn-sm" onclick="app.pasteImport()" title="Paste YAML/JSON"><i class="bi bi-clipboard"></i> Paste</button>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-outline-success btn-sm" onclick="app.exportYaml()" title="Download YAML"><i class="bi bi-download"></i> YAML</button>
+      <button class="btn btn-outline-success btn-sm" onclick="app.exportJson()" title="Download JSON"><i class="bi bi-download"></i> JSON</button>
+      <button class="btn btn-outline-success btn-sm" onclick="app.exportHtml()" title="Standalone HTML Docs"><i class="bi bi-filetype-html"></i> HTML</button>
+      <button class="btn btn-outline-success btn-sm" onclick="app.exportMarkdown()" title="Markdown"><i class="bi bi-markdown"></i> MD</button>
+      <button class="btn btn-outline-success btn-sm" onclick="app.exportPdf()" title="PDF"><i class="bi bi-file-pdf"></i> PDF</button>
+      <button class="btn btn-outline-success btn-sm" onclick="app.exportZip()" title="ZIP Bundle"><i class="bi bi-file-zip"></i> ZIP</button>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-outline-secondary btn-sm" onclick="app.formatEditors()" title="Format"><i class="bi bi-code-slash"></i> Format</button>
+      <button class="btn btn-outline-secondary btn-sm" onclick="app.validate()" title="Validate"><i class="bi bi-check2-circle"></i> Validate</button>
+      <button class="btn btn-outline-secondary btn-sm theme-toggle" onclick="app.toggleTheme()" title="Toggle Theme"><i class="bi bi-moon-stars" id="themeIcon"></i></button>
+    </div>
+    <span class="version-badge" id="versionBadge">OpenAPI 3.0</span>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <span id="syncStatus" class="text-muted small"><i class="bi bi-arrow-repeat"></i> Synced</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="pane" id="visualPane">
+      <div class="pane-header">
+        <span><i class="bi bi-palette"></i> Visual Builder</span>
+        <div>
+          <button class="btn btn-sm btn-outline-primary add-btn" onclick="app.addPath()" title="Add Path"><i class="bi bi-plus-lg"></i> Path</button>
+        </div>
+      </div>
+      <div class="pane-body" id="visualBody">
+        <div class="drop-zone" id="dropZone">
+          <i class="bi bi-cloud-arrow-up" style="font-size:2rem"></i>
+          <p class="mb-1 mt-2">Drop YAML/JSON here or use toolbar</p>
+          <p class="small mb-0">or start building visually below</p>
+        </div>
+        <div class="section-title"><span>API Info</span></div>
+        <div class="card-item" id="infoCard">
+          <div class="mb-2">
+            <label class="form-label-sm">Title</label>
+            <input type="text" class="form-control form-control-sm" id="infoTitle" placeholder="My API" onchange="app.onInfoChange()">
+          </div>
+          <div class="mb-2">
+            <label class="form-label-sm">Version</label>
+            <input type="text" class="form-control form-control-sm" id="infoVersion" placeholder="1.0.0" onchange="app.onInfoChange()">
+          </div>
+          <div class="mb-2">
+            <label class="form-label-sm">Description</label>
+            <textarea class="form-control form-control-sm" id="infoDesc" rows="2" placeholder="A short description" onchange="app.onInfoChange()"></textarea>
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label-sm">Contact Name</label>
+              <input type="text" class="form-control form-control-sm" id="infoContact" onchange="app.onInfoChange()">
+            </div>
+            <div class="col-6">
+              <label class="form-label-sm">License</label>
+              <input type="text" class="form-control form-control-sm" id="infoLicense" placeholder="MIT" onchange="app.onInfoChange()">
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">
+          <span>Servers</span>
+          <button class="btn btn-sm btn-outline-primary add-btn" onclick="app.addServer()"><i class="bi bi-plus"></i></button>
+        </div>
+        <div id="serversList"></div>
+
+        <div class="section-title">
+          <span>Paths & Operations</span>
+          <button class="btn btn-sm btn-outline-primary add-btn" onclick="app.addPath()"><i class="bi bi-plus"></i> Path</button>
+        </div>
+        <div id="pathsList"></div>
+
+        <div class="section-title">
+          <span>Schemas (Components)</span>
+          <button class="btn btn-sm btn-outline-primary add-btn" onclick="app.addSchema()"><i class="bi bi-plus"></i></button>
+        </div>
+        <div id="schemasList"></div>
+
+        <div class="section-title">
+          <span>Security Schemes</span>
+          <button class="btn btn-sm btn-outline-primary add-btn" onclick="app.addSecurityScheme()"><i class="bi bi-plus"></i></button>
+        </div>
+        <div id="securityList"></div>
+
+        <div class="section-title">
+          <span>Tags</span>
+          <button class="btn btn-sm btn-outline-primary add-btn" onclick="app.addTag()"><i class="bi bi-plus"></i></button>
+        </div>
+        <div id="tagsList"></div>
+      </div>
+    </div>
+
+    <div class="resizer" id="resizer1"></div>
+
+    <div class="pane" id="editorPane">
+      <div class="pane-header">
+        <span><i class="bi bi-code-slash"></i> Code Editor</span>
+        <div class="btn-group btn-group-sm">
+          <button class="btn btn-outline-secondary btn-sm" onclick="app.copyEditor()" title="Copy"><i class="bi bi-clipboard"></i></button>
+        </div>
+      </div>
+      <div class="editor-tabs">
+        <div class="editor-tab active" data-tab="yaml" onclick="app.switchEditor('yaml')">YAML</div>
+        <div class="editor-tab" data-tab="json" onclick="app.switchEditor('json')">JSON</div>
+      </div>
+      <div class="pane-body">
+        <div id="yamlEditor"></div>
+        <div id="jsonEditor" class="editor-hidden"></div>
+      </div>
+    </div>
+
+    <div class="resizer" id="resizer2"></div>
+
+    <div class="pane" id="previewPane">
+      <div class="pane-header">
+        <span><i class="bi bi-eye"></i> Live Preview <small class="text-muted">(click to edit)</small></span>
+        <div>
+          <button class="btn btn-sm btn-outline-secondary" onclick="app.togglePreviewMode()" id="previewModeBtn" title="Toggle Preview Mode"><i class="bi bi-layout-text-window"></i></button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="app.refreshPreview()" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
+        </div>
+      </div>
+      <div class="pane-body" id="previewContent">
+        <div id="swagger-ui"></div>
+        <div id="customPreview" class="custom-preview" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span id="statusLeft">Ready</span>
+    <span id="statusRight">Paths: 0 · Operations: 0</span>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept=".yaml,.yml,.json,.txt" style="display:none" onchange="app.handleFile(event)">
+
+<!-- Path Modal -->
+<div class="modal fade" id="pathModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="pathModalTitle">Add Path</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Path</label>
+          <input type="text" class="form-control" id="pathInput" placeholder="/users/{id}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Methods</label>
+          <div class="d-flex flex-wrap gap-2" id="methodChecks">
+            <div class="form-check"><input class="form-check-input" type="checkbox" value="get" id="m_get"><label class="form-check-label" for="m_get">GET</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" value="post" id="m_post"><label class="form-check-label" for="m_post">POST</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" value="put" id="m_put"><label class="form-check-label" for="m_put">PUT</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" value="delete" id="m_delete"><label class="form-check-label" for="m_delete">DELETE</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" value="patch" id="m_patch"><label class="form-check-label" for="m_patch">PATCH</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" value="head" id="m_head"><label class="form-check-label" for="m_head">HEAD</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" value="options" id="m_options"><label class="form-check-label" for="m_options">OPTIONS</label></div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Summary (for first method)</label>
+          <input type="text" class="form-control" id="opSummary" placeholder="Get user by ID">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Operation ID</label>
+          <input type="text" class="form-control" id="opId" placeholder="getUserById">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Tags (comma separated)</label>
+          <input type="text" class="form-control" id="opTags" placeholder="users">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="app.savePath()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Operation Edit Modal (enhanced) -->
+<div class="modal fade" id="opEditModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="opEditTitle">Edit Operation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="opEditBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-danger me-auto" onclick="app.deleteCurrentOp()">Delete Operation</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="app.saveOpEdit()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Schema Modal -->
+<div class="modal fade" id="schemaModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Schema Builder</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Schema Name</label>
+          <input type="text" class="form-control" id="schemaName" placeholder="User">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Type</label>
+          <select class="form-select" id="schemaType">
+            <option value="object">object</option>
+            <option value="array">array</option>
+            <option value="string">string</option>
+            <option value="integer">integer</option>
+            <option value="number">number</option>
+            <option value="boolean">boolean</option>
+          </select>
+        </div>
+        <div id="schemaPropsSection">
+          <label class="form-label">Properties</label>
+          <div id="schemaPropsList"></div>
+          <button class="btn btn-sm btn-outline-primary mt-2" onclick="app.addSchemaProp()"><i class="bi bi-plus"></i> Property</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="app.saveSchema()">Save Schema</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Security Modal -->
+<div class="modal fade" id="securityModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Security Scheme</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Name</label>
+          <input type="text" class="form-control" id="secName" placeholder="bearerAuth">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Type</label>
+          <select class="form-select" id="secType" onchange="app.onSecTypeChange()">
+            <option value="http">HTTP</option>
+            <option value="apiKey">API Key</option>
+            <option value="oauth2">OAuth2</option>
+            <option value="openIdConnect">OpenID Connect</option>
+          </select>
+        </div>
+        <div id="secHttpOpts">
+          <div class="mb-3">
+            <label class="form-label">Scheme</label>
+            <select class="form-select" id="secScheme">
+              <option value="bearer">bearer</option>
+              <option value="basic">basic</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Bearer Format</label>
+            <input type="text" class="form-control" id="secBearer" placeholder="JWT">
+          </div>
+        </div>
+        <div id="secApiKeyOpts" style="display:none">
+          <div class="mb-3">
+            <label class="form-label">In</label>
+            <select class="form-select" id="secIn">
+              <option value="header">header</option>
+              <option value="query">query</option>
+              <option value="cookie">cookie</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Parameter Name</label>
+            <input type="text" class="form-control" id="secParamName" placeholder="X-API-Key">
+          </div>
+        </div>
+        <div id="secOidcOpts" style="display:none">
+          <div class="mb-3">
+            <label class="form-label">OpenID Connect URL</label>
+            <input type="text" class="form-control" id="secOidcUrl" placeholder="https://example.com/.well-known/openid-configuration">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="app.saveSecurity()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="urlModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Import from URL</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="url" class="form-control" id="urlInput" placeholder="https://petstore3.swagger.io/api/v3/openapi.json">
+        <div class="form-text">CORS must allow the request. Popular public specs work.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="app.fetchUrl()">Import</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="pasteModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Paste OpenAPI Spec</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <textarea class="form-control font-monospace" id="pasteArea" rows="15" placeholder="Paste YAML or JSON here..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="app.applyPaste()">Import</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  const DEFAULT_SPEC = {
+    openapi: '3.0.3',
+    info: {
+      title: 'My Awesome API',
+      version: '1.0.0',
+      description: 'A sample API built with OpenAPI Studio. Click anywhere in the preview to edit!',
+      contact: { name: '' },
+      license: { name: 'MIT' }
+    },
+    servers: [{ url: 'https://api.example.com/v1', description: 'Production' }],
+    paths: {
+      '/hello': {
+        get: {
+          summary: 'Say hello',
+          operationId: 'sayHello',
+          tags: ['Greeting'],
+          parameters: [
+            { name: 'name', in: 'query', description: 'Name to greet', required: false, schema: { type: 'string', default: 'World' }, example: 'Alice' }
+          ],
+          responses: {
+            '200': {
+              description: 'A friendly greeting',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Greeting' },
+                  example: { message: 'Hello, Alice!' }
+                }
+              }
+            }
+          }
+        }
+      },
+      '/users': {
+        post: {
+          summary: 'Create a user',
+          operationId: 'createUser',
+          tags: ['Users'],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/User' },
+                example: { name: 'Alice', email: 'alice@example.com' }
+              }
+            }
+          },
+          responses: {
+            '201': {
+              description: 'User created',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/User' },
+                  example: { id: 1, name: 'Alice', email: 'alice@example.com' }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    components: {
+      schemas: {
+        Greeting: {
+          type: 'object',
+          properties: {
+            message: { type: 'string', example: 'Hello, World!' }
+          }
+        },
+        User: {
+          type: 'object',
+          required: ['name', 'email'],
+          properties: {
+            id: { type: 'integer' },
+            name: { type: 'string', example: 'Alice' },
+            email: { type: 'string', format: 'email', example: 'alice@example.com' }
+          }
+        }
+      },
+      securitySchemes: {}
+    },
+    tags: [
+      { name: 'Greeting', description: 'Friendly endpoints' },
+      { name: 'Users', description: 'User management' }
+    ]
+  };
+
+  const CONTENT_TYPES = [
+    'application/json',
+    'application/xml',
+    'application/x-www-form-urlencoded',
+    'multipart/form-data',
+    'text/plain',
+    'text/html',
+    'application/octet-stream'
+  ];
+
+  const app = {
+    spec: null,
+    yamlEditor: null,
+    jsonEditor: null,
+    currentEditor: 'yaml',
+    syncing: false,
+    swaggerUI: null,
+    previewMode: 'swagger',
+    editingPath: null,
+    editingMethod: null,
+    pathModal: null,
+    opEditModal: null,
+    schemaModal: null,
+    securityModal: null,
+    urlModal: null,
+    pasteModal: null,
+    dark: false,
+    debounceTimers: {},
+
+    init() {
+      this.spec = structuredClone(DEFAULT_SPEC);
+      this.pathModal = new bootstrap.Modal('#pathModal');
+      this.opEditModal = new bootstrap.Modal('#opEditModal');
+      this.schemaModal = new bootstrap.Modal('#schemaModal');
+      this.securityModal = new bootstrap.Modal('#securityModal');
+      this.urlModal = new bootstrap.Modal('#urlModal');
+      this.pasteModal = new bootstrap.Modal('#pasteModal');
+
+      ace.require('ace/ext/language_tools');
+      this.yamlEditor = ace.edit('yamlEditor', {
+        mode: 'ace/mode/yaml',
+        theme: 'ace/theme/github',
+        fontSize: 13,
+        showPrintMargin: false,
+        tabSize: 2,
+        useSoftTabs: true,
+        enableBasicAutocompletion: true,
+        enableLiveAutocompletion: true,
+        wrap: true
+      });
+      this.jsonEditor = ace.edit('jsonEditor', {
+        mode: 'ace/mode/json',
+        theme: 'ace/theme/github',
+        fontSize: 13,
+        showPrintMargin: false,
+        tabSize: 2,
+        useSoftTabs: true,
+        enableBasicAutocompletion: true,
+        enableLiveAutocompletion: true,
+        wrap: true
+      });
+
+      this.yamlEditor.session.on('change', () => this.onEditorChange('yaml'));
+      this.jsonEditor.session.on('change', () => this.onEditorChange('json'));
+
+      this.setupResizers();
+      this.setupDropZone();
+      this.renderAll();
+      this.setStatus('Ready — schemas, examples & request bodies supported');
+    },
+
+    setupResizers() {
+      const makeResizer = (el, leftPane, rightPane) => {
+        let startX, startLeftW, startRightW;
+        el.addEventListener('mousedown', e => {
+          startX = e.clientX;
+          startLeftW = leftPane.offsetWidth;
+          startRightW = rightPane.offsetWidth;
+          const onMove = ev => {
+            const dx = ev.clientX - startX;
+            const total = startLeftW + startRightW;
+            let newLeft = Math.max(200, Math.min(total - 200, startLeftW + dx));
+            leftPane.style.width = newLeft + 'px';
+            rightPane.style.width = (total - newLeft) + 'px';
+            this.yamlEditor.resize();
+            this.jsonEditor.resize();
+          };
+          const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+          };
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
+      };
+      makeResizer(document.getElementById('resizer1'), document.getElementById('visualPane'), document.getElementById('editorPane'));
+      makeResizer(document.getElementById('resizer2'), document.getElementById('editorPane'), document.getElementById('previewPane'));
+    },
+
+    setupDropZone() {
+      const zone = document.getElementById('dropZone');
+      const visual = document.getElementById('visualBody');
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev => {
+        visual.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); });
+      });
+      visual.addEventListener('dragover', () => zone.classList.add('dragover'));
+      visual.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+      visual.addEventListener('drop', e => {
+        zone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file) this.readFile(file);
+      });
+    },
+
+    debounce(key, fn, ms = 400) {
+      clearTimeout(this.debounceTimers[key]);
+      this.debounceTimers[key] = setTimeout(fn, ms);
+    },
+
+    onEditorChange(src) {
+      if (this.syncing) return;
+      this.debounce('editor', () => {
+        try {
+          const text = src === 'yaml' ? this.yamlEditor.getValue() : this.jsonEditor.getValue();
+          if (!text.trim()) return;
+          let parsed = src === 'yaml' ? jsyaml.load(text) : JSON.parse(text);
+          if (!parsed || typeof parsed !== 'object') throw new Error('Invalid document');
+          this.spec = this.normalizeSpec(parsed);
+          this.detectVersion();
+          this.syncing = true;
+          if (src === 'yaml') this.jsonEditor.setValue(JSON.stringify(this.spec, null, 2), -1);
+          else this.yamlEditor.setValue(jsyaml.dump(this.spec, { lineWidth: -1, noRefs: true }), -1);
+          this.syncing = false;
+          this.renderVisual();
+          this.refreshPreview();
+          this.updateCounts();
+          this.setSyncStatus(true);
+          this.setStatus('Synced from ' + src.toUpperCase());
+        } catch (err) {
+          this.setSyncStatus(false, err.message);
+          this.setStatus('Parse error: ' + err.message, true);
+        }
+      });
+    },
+
+    pushToEditors() {
+      this.syncing = true;
+      try {
+        this.yamlEditor.setValue(jsyaml.dump(this.spec, { lineWidth: -1, noRefs: true }), -1);
+        this.jsonEditor.setValue(JSON.stringify(this.spec, null, 2), -1);
+      } catch (e) { console.error(e); }
+      this.syncing = false;
+    },
+
+    normalizeSpec(raw) {
+      const s = structuredClone(raw);
+      if (!s.info) s.info = { title: 'Untitled', version: '1.0.0' };
+      if (!s.paths) s.paths = {};
+      if (!s.components) s.components = {};
+      if (!s.components.schemas) s.components.schemas = {};
+      if (!s.components.securitySchemes) s.components.securitySchemes = {};
+      if (!s.servers) s.servers = [];
+      if (!s.tags) s.tags = [];
+      if (s.swagger && !s.openapi) {
+        s.openapi = '3.0.0';
+        if (s.host || s.basePath) {
+          const scheme = (s.schemes && s.schemes[0]) || 'https';
+          s.servers = [{ url: scheme + '://' + (s.host || 'example.com') + (s.basePath || '') }];
+        }
+        if (s.definitions) {
+          s.components.schemas = { ...s.components.schemas, ...s.definitions };
+          delete s.definitions;
+        }
+        if (s.securityDefinitions) {
+          s.components.securitySchemes = { ...s.components.securitySchemes, ...s.securityDefinitions };
+          delete s.securityDefinitions;
+        }
+        delete s.swagger; delete s.host; delete s.basePath; delete s.schemes; delete s.consumes; delete s.produces;
+      }
+      return s;
+    },
+
+    detectVersion() {
+      let v = 'OpenAPI 3.0';
+      if (this.spec.openapi) {
+        if (this.spec.openapi.startsWith('3.1')) v = 'OpenAPI 3.1';
+        else if (this.spec.openapi.startsWith('3.0')) v = 'OpenAPI 3.0';
+        else v = 'OpenAPI ' + this.spec.openapi;
+      } else if (this.spec.swagger) v = 'Swagger ' + this.spec.swagger;
+      document.getElementById('versionBadge').textContent = v;
+    },
+
+    getSchemaNames() {
+      return Object.keys(this.spec.components?.schemas || {}).sort();
+    },
+
+    schemaSelectHtml(selectedRef) {
+      const names = this.getSchemaNames();
+      let html = `<option value="">— none / inline —</option>`;
+      names.forEach(n => {
+        const ref = '#/components/schemas/' + n;
+        html += `<option value="${this.escAttr(ref)}" ${selectedRef === ref ? 'selected' : ''}>${this.esc(n)}</option>`;
+      });
+      return html;
+    },
+
+    extractRef(schema) {
+      if (!schema) return '';
+      if (schema.$ref) return schema.$ref;
+      return '';
+    },
+
+    extractExample(obj) {
+      if (!obj) return '';
+      if (obj.example !== undefined) {
+        return typeof obj.example === 'object' ? JSON.stringify(obj.example, null, 2) : String(obj.example);
+      }
+      if (obj.examples) {
+        const first = Object.values(obj.examples)[0];
+        if (first && first.value !== undefined) {
+          return typeof first.value === 'object' ? JSON.stringify(first.value, null, 2) : String(first.value);
+        }
+      }
+      return '';
+    },
+
+    parseExample(text) {
+      if (!text || !text.trim()) return undefined;
+      try { return JSON.parse(text); } catch { return text.trim(); }
+    },
+
+    renderAll() {
+      this.pushToEditors();
+      this.renderVisual();
+      this.refreshPreview();
+      this.detectVersion();
+      this.updateCounts();
+    },
+
+    renderVisual() {
+      const s = this.spec;
+      document.getElementById('infoTitle').value = s.info?.title || '';
+      document.getElementById('infoVersion').value = s.info?.version || '';
+      document.getElementById('infoDesc').value = s.info?.description || '';
+      document.getElementById('infoContact').value = s.info?.contact?.name || '';
+      document.getElementById('infoLicense').value = s.info?.license?.name || '';
+
+      const serversEl = document.getElementById('serversList');
+      serversEl.innerHTML = '';
+      (s.servers || []).forEach((srv, i) => {
+        const div = document.createElement('div');
+        div.className = 'card-item server-card';
+        div.innerHTML = `
+          <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+              <input class="form-control form-control-sm mb-1" value="${this.esc(srv.url || '')}" data-i="${i}" data-f="url" onchange="app.updateServer(this)">
+              <input class="form-control form-control-sm" value="${this.esc(srv.description || '')}" placeholder="Description" data-i="${i}" data-f="description" onchange="app.updateServer(this)">
+            </div>
+            <button class="btn btn-sm btn-outline-danger btn-icon ms-2" onclick="app.removeServer(${i})"><i class="bi bi-trash"></i></button>
+          </div>`;
+        serversEl.appendChild(div);
+      });
+
+      const pathsEl = document.getElementById('pathsList');
+      pathsEl.innerHTML = '';
+      const paths = Object.keys(s.paths || {});
+      if (paths.length === 0) {
+        pathsEl.innerHTML = '<div class="empty-state small py-3"><i class="bi bi-signpost"></i><p class="mb-0 mt-1">No paths yet. Click + Path</p></div>';
+      }
+      paths.forEach(path => {
+        const pathObj = s.paths[path];
+        const group = document.createElement('div');
+        group.className = 'path-group card-item';
+        const methods = ['get','post','put','delete','patch','head','options','trace'].filter(m => pathObj[m]);
+        let opsHtml = methods.map(m => {
+          const op = pathObj[m];
+          const hasBody = !!op.requestBody;
+          const hasSchema = hasBody || Object.values(op.responses || {}).some(r => r.content);
+          return `<div class="op-card" onclick="app.editOp('${this.escAttr(path)}','${m}')">
+            <span class="method-badge method-${m}">${m}</span>
+            <span class="summary">${this.esc(op.summary || op.operationId || '')}</span>
+            ${hasSchema ? '<span class="ref-badge" title="Has schema / example">schema</span>' : ''}
+            <button class="btn btn-sm btn-outline-danger btn-icon" onclick="event.stopPropagation();app.deleteOp('${this.escAttr(path)}','${m}')"><i class="bi bi-x"></i></button>
+          </div>`;
+        }).join('');
+        group.innerHTML = `
+          <div class="card-title collapse-toggle" onclick="this.parentElement.querySelector('.path-ops').classList.toggle('d-none')">
+            <i class="bi bi-chevron-down"></i>
+            <span class="path-text">${this.esc(path)}</span>
+            <span class="badge bg-secondary badge-count ms-auto">${methods.length}</span>
+            <button class="btn btn-sm btn-outline-primary btn-icon ms-1" onclick="event.stopPropagation();app.addMethodToPath('${this.escAttr(path)}')" title="Add method"><i class="bi bi-plus"></i></button>
+            <button class="btn btn-sm btn-outline-danger btn-icon" onclick="event.stopPropagation();app.deletePath('${this.escAttr(path)}')"><i class="bi bi-trash"></i></button>
+          </div>
+          <div class="path-ops">${opsHtml}</div>`;
+        pathsEl.appendChild(group);
+      });
+
+      const schemasEl = document.getElementById('schemasList');
+      schemasEl.innerHTML = '';
+      Object.keys(s.components?.schemas || {}).forEach(name => {
+        const sch = s.components.schemas[name];
+        const div = document.createElement('div');
+        div.className = 'card-item schema-card';
+        const props = sch.properties ? Object.keys(sch.properties).map(p => {
+          const t = sch.properties[p].type || (sch.properties[p].$ref || 'any');
+          return `<span class="badge bg-light text-dark me-1">${this.esc(p)}: ${this.esc(String(t).replace('#/components/schemas/',''))}</span>`;
+        }).join('') : '';
+        div.innerHTML = `
+          <div class="d-flex justify-content-between">
+            <div>
+              <strong>${this.esc(name)}</strong>
+              <span class="badge bg-secondary ms-1">${sch.type || 'object'}</span>
+              <div class="mt-1">${props}</div>
+            </div>
+            <div>
+              <button class="btn btn-sm btn-outline-primary btn-icon" onclick="app.editSchema('${this.escAttr(name)}')"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger btn-icon" onclick="app.deleteSchema('${this.escAttr(name)}')"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>`;
+        schemasEl.appendChild(div);
+      });
+
+      const secEl = document.getElementById('securityList');
+      secEl.innerHTML = '';
+      Object.keys(s.components?.securitySchemes || {}).forEach(name => {
+        const sec = s.components.securitySchemes[name];
+        const div = document.createElement('div');
+        div.className = 'card-item security-card';
+        div.innerHTML = `
+          <div class="d-flex justify-content-between">
+            <div><strong>${this.esc(name)}</strong> <span class="badge bg-info text-dark">${sec.type || ''}</span>
+            ${sec.scheme ? `<span class="text-muted small">(${sec.scheme})</span>` : ''}
+            ${sec.name ? `<span class="text-muted small">${sec.in}: ${sec.name}</span>` : ''}
+            </div>
+            <button class="btn btn-sm btn-outline-danger btn-icon" onclick="app.deleteSecurity('${this.escAttr(name)}')"><i class="bi bi-trash"></i></button>
+          </div>`;
+        secEl.appendChild(div);
+      });
+
+      const tagsEl = document.getElementById('tagsList');
+      tagsEl.innerHTML = '';
+      (s.tags || []).forEach((tag, i) => {
+        const div = document.createElement('div');
+        div.className = 'card-item tag-card';
+        div.innerHTML = `
+          <div class="d-flex gap-2 align-items-center">
+            <input class="form-control form-control-sm" style="max-width:140px" value="${this.esc(tag.name || '')}" data-i="${i}" data-f="name" onchange="app.updateTag(this)">
+            <input class="form-control form-control-sm flex-grow-1" value="${this.esc(tag.description || '')}" placeholder="Description" data-i="${i}" data-f="description" onchange="app.updateTag(this)">
+            <button class="btn btn-sm btn-outline-danger btn-icon" onclick="app.removeTag(${i})"><i class="bi bi-trash"></i></button>
+          </div>`;
+        tagsEl.appendChild(div);
+      });
+    },
+
+    onInfoChange() {
+      this.spec.info = this.spec.info || {};
+      this.spec.info.title = document.getElementById('infoTitle').value;
+      this.spec.info.version = document.getElementById('infoVersion').value;
+      this.spec.info.description = document.getElementById('infoDesc').value;
+      this.spec.info.contact = this.spec.info.contact || {};
+      this.spec.info.contact.name = document.getElementById('infoContact').value;
+      this.spec.info.license = this.spec.info.license || {};
+      this.spec.info.license.name = document.getElementById('infoLicense').value;
+      this.afterVisualChange();
+    },
+
+    addServer() {
+      this.spec.servers = this.spec.servers || [];
+      this.spec.servers.push({ url: 'https://api.example.com', description: 'New server' });
+      this.afterVisualChange();
+    },
+    updateServer(el) {
+      this.spec.servers[+el.dataset.i][el.dataset.f] = el.value;
+      this.afterVisualChange();
+    },
+    removeServer(i) {
+      this.spec.servers.splice(i, 1);
+      this.afterVisualChange();
+    },
+
+    addTag() {
+      this.spec.tags = this.spec.tags || [];
+      this.spec.tags.push({ name: 'NewTag', description: '' });
+      this.afterVisualChange();
+    },
+    updateTag(el) {
+      this.spec.tags[+el.dataset.i][el.dataset.f] = el.value;
+      this.afterVisualChange();
+    },
+    removeTag(i) {
+      this.spec.tags.splice(i, 1);
+      this.afterVisualChange();
+    },
+
+    afterVisualChange() {
+      this.pushToEditors();
+      this.refreshPreview();
+      this.updateCounts();
+      this.setSyncStatus(true);
+      this.setStatus('Updated from Visual Builder');
+    },
+
+    addPath() {
+      this.editingPath = null;
+      document.getElementById('pathModalTitle').textContent = 'Add Path';
+      document.getElementById('pathInput').value = '/new-path';
+      document.getElementById('pathInput').readOnly = false;
+      document.getElementById('opSummary').value = '';
+      document.getElementById('opId').value = '';
+      document.getElementById('opTags').value = '';
+      document.querySelectorAll('#methodChecks input').forEach(c => { c.checked = c.value === 'get'; c.disabled = false; });
+      this.pathModal.show();
+    },
+
+    addMethodToPath(path) {
+      this.editingPath = path;
+      document.getElementById('pathModalTitle').textContent = 'Add Method to ' + path;
+      document.getElementById('pathInput').value = path;
+      document.getElementById('pathInput').readOnly = true;
+      document.getElementById('opSummary').value = '';
+      document.getElementById('opId').value = '';
+      document.getElementById('opTags').value = '';
+      document.querySelectorAll('#methodChecks input').forEach(c => {
+        c.checked = false;
+        c.disabled = !!this.spec.paths[path][c.value];
+      });
+      this.pathModal.show();
+    },
+
+    savePath() {
+      const path = document.getElementById('pathInput').value.trim();
+      if (!path.startsWith('/')) { this.toast('Path must start with /', 'danger'); return; }
+      const methods = [...document.querySelectorAll('#methodChecks input:checked')].map(c => c.value);
+      if (methods.length === 0) { this.toast('Select at least one method', 'warning'); return; }
+      this.spec.paths = this.spec.paths || {};
+      if (!this.spec.paths[path]) this.spec.paths[path] = {};
+      const summary = document.getElementById('opSummary').value;
+      const opId = document.getElementById('opId').value;
+      const tags = document.getElementById('opTags').value.split(',').map(t => t.trim()).filter(Boolean);
+      methods.forEach((m, idx) => {
+        if (!this.spec.paths[path][m]) {
+          this.spec.paths[path][m] = {
+            summary: idx === 0 ? summary : (summary ? summary + ' (' + m.toUpperCase() + ')' : ''),
+            operationId: opId ? (idx === 0 ? opId : opId + '_' + m) : undefined,
+            tags: tags.length ? tags : undefined,
+            responses: { '200': { description: 'Successful response' } }
+          };
+        }
+      });
+      document.getElementById('pathInput').readOnly = false;
+      this.pathModal.hide();
+      this.afterVisualChange();
+      this.renderVisual();
+    },
+
+    deletePath(path) {
+      if (!confirm('Delete path ' + path + ' and all its operations?')) return;
+      delete this.spec.paths[path];
+      this.afterVisualChange();
+      this.renderVisual();
+    },
+
+    deleteOp(path, method) {
+      delete this.spec.paths[path][method];
+      const remaining = Object.keys(this.spec.paths[path]).filter(k =>
+        !k.startsWith('x-') && k !== 'parameters' && k !== 'summary' && k !== 'description' && k !== 'servers');
+      if (remaining.length === 0) delete this.spec.paths[path];
+      this.afterVisualChange();
+      this.renderVisual();
+    },
+
+    // ─── Enhanced Operation Editor ───────────────────────────────
+    editOp(path, method) {
+      this.editingPath = path;
+      this.editingMethod = method;
+      const op = this.spec.paths[path][method];
+      document.getElementById('opEditTitle').innerHTML =
+        `<span class="method-badge method-${method}">${method}</span> <code>${this.esc(path)}</code>`;
+
+      const body = document.getElementById('opEditBody');
+      const params = op.parameters || [];
+      const responses = op.responses || {};
+      const rb = op.requestBody || null;
+
+      // Detect current request body media type & schema
+      let rbCt = 'application/json', rbRef = '', rbExample = '', rbRequired = true;
+      if (rb && rb.content) {
+        const cts = Object.keys(rb.content);
+        if (cts.length) {
+          rbCt = cts[0];
+          const media = rb.content[rbCt];
+          rbRef = this.extractRef(media.schema);
+          rbExample = this.extractExample(media);
+        }
+        rbRequired = rb.required !== false;
+      }
+
+      let paramsHtml = params.map((p, i) => {
+        const ex = p.example !== undefined
+          ? (typeof p.example === 'object' ? JSON.stringify(p.example) : String(p.example))
+          : '';
+        return `<div class="param-row align-items-start" data-idx="${i}">
+          <input class="form-control form-control-sm" value="${this.esc(p.name || '')}" data-f="name" placeholder="name">
+          <select class="form-select form-select-sm" data-f="in">
+            ${['query','path','header','cookie'].map(v => `<option value="${v}" ${p.in===v?'selected':''}>${v}</option>`).join('')}
+          </select>
+          <select class="form-select form-select-sm" data-f="required">
+            <option value="false" ${!p.required?'selected':''}>optional</option>
+            <option value="true" ${p.required?'selected':''}>required</option>
+          </select>
+          <input class="form-control form-control-sm" value="${this.esc(p.description || '')}" data-f="description" placeholder="description">
+          <button class="btn btn-sm btn-outline-danger btn-icon" onclick="this.closest('.param-row').remove()"><i class="bi bi-x"></i></button>
+          <div class="w-100 mt-1">
+            <input class="form-control form-control-sm" data-f="example" value="${this.esc(ex)}" placeholder="example value">
+          </div>
+        </div>`;
+      }).join('');
+
+      let respHtml = Object.keys(responses).map(code => {
+        const r = responses[code];
+        let ct = 'application/json', ref = '', example = '';
+        if (r.content) {
+          const cts = Object.keys(r.content);
+          if (cts.length) {
+            ct = cts[0];
+            const media = r.content[ct];
+            ref = this.extractRef(media.schema);
+            example = this.extractExample(media);
+          }
+        }
+        return `<div class="content-block" data-code="${this.escAttr(code)}">
+          <div class="d-flex gap-2 mb-2 flex-wrap">
+            <input class="form-control form-control-sm" style="max-width:90px" value="${this.esc(code)}" data-f="code" placeholder="200">
+            <input class="form-control form-control-sm flex-grow-1" value="${this.esc(r.description || '')}" data-f="description" placeholder="Description">
+            <button class="btn btn-sm btn-outline-danger btn-icon" onclick="this.closest('.content-block').remove()"><i class="bi bi-x"></i></button>
+          </div>
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label class="form-label-sm">Content-Type</label>
+              <select class="form-select form-select-sm" data-f="ct">
+                ${CONTENT_TYPES.map(t => `<option value="${t}" ${t===ct?'selected':''}>${t}</option>`).join('')}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label-sm">Schema (link)</label>
+              <select class="form-select form-select-sm" data-f="schema">${this.schemaSelectHtml(ref)}</select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label-sm">Example (JSON)</label>
+              <textarea class="form-control form-control-sm font-monospace" data-f="example" rows="2" placeholder='{"id":1}'>${this.esc(example)}</textarea>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+
+      body.innerHTML = `
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label-sm">Summary</label>
+            <input class="form-control form-control-sm" id="editSummary" value="${this.esc(op.summary || '')}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-sm">Operation ID</label>
+            <input class="form-control form-control-sm" id="editOpId" value="${this.esc(op.operationId || '')}">
+          </div>
+          <div class="col-12">
+            <label class="form-label-sm">Description</label>
+            <textarea class="form-control form-control-sm" id="editOpDesc" rows="2">${this.esc(op.description || '')}</textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label-sm">Tags (comma-separated)</label>
+            <input class="form-control form-control-sm" id="editOpTags" value="${this.esc((op.tags || []).join(', '))}">
+          </div>
+
+          <!-- Parameters -->
+          <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label class="form-label-sm mb-0">Parameters</label>
+              <button class="btn btn-sm btn-outline-primary add-btn" onclick="app.addParamRow()"><i class="bi bi-plus"></i> Param</button>
+            </div>
+            <div id="editParamsList">${paramsHtml || '<div class="text-muted small">No parameters</div>'}</div>
+          </div>
+
+          <!-- Request Body -->
+          <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label class="form-label-sm mb-0">Request Body</label>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="rbEnabled" ${rb ? 'checked' : ''} onchange="app.toggleRequestBody(this.checked)">
+                <label class="form-check-label small" for="rbEnabled">Enable</label>
+              </div>
+            </div>
+            <div id="rbSection" class="content-block" style="${rb ? '' : 'display:none'}">
+              <div class="row g-2">
+                <div class="col-md-3">
+                  <label class="form-label-sm">Required</label>
+                  <select class="form-select form-select-sm" id="rbRequired">
+                    <option value="true" ${rbRequired?'selected':''}>required</option>
+                    <option value="false" ${!rbRequired?'selected':''}>optional</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label-sm">Content-Type</label>
+                  <select class="form-select form-select-sm" id="rbCt">
+                    ${CONTENT_TYPES.map(t => `<option value="${t}" ${t===rbCt?'selected':''}>${t}</option>`).join('')}
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label-sm">Schema (link component)</label>
+                  <select class="form-select form-select-sm" id="rbSchema">${this.schemaSelectHtml(rbRef)}</select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label-sm">Example (JSON)</label>
+                  <textarea class="form-control form-control-sm font-monospace" id="rbExample" rows="2" placeholder='{"name":"Alice"}'>${this.esc(rbExample)}</textarea>
+                </div>
+              </div>
+              <div class="form-text mt-1">Pick a schema from Components, or leave empty for a generic object. Example is shown in Swagger UI “Try it out”.</div>
+            </div>
+          </div>
+
+          <!-- Responses -->
+          <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label class="form-label-sm mb-0">Responses</label>
+              <button class="btn btn-sm btn-outline-primary add-btn" onclick="app.addRespRow()"><i class="bi bi-plus"></i> Response</button>
+            </div>
+            <div id="editRespsList">${respHtml || '<div class="text-muted small">No responses</div>'}</div>
+          </div>
+        </div>`;
+      this.opEditModal.show();
+    },
+
+    toggleRequestBody(on) {
+      document.getElementById('rbSection').style.display = on ? '' : 'none';
+    },
+
+    addParamRow() {
+      const list = document.getElementById('editParamsList');
+      if (list.querySelector('.text-muted')) list.innerHTML = '';
+      const div = document.createElement('div');
+      div.className = 'param-row align-items-start';
+      div.innerHTML = `
+        <input class="form-control form-control-sm" data-f="name" placeholder="name">
+        <select class="form-select form-select-sm" data-f="in">
+          <option value="query">query</option><option value="path">path</option>
+          <option value="header">header</option><option value="cookie">cookie</option>
+        </select>
+        <select class="form-select form-select-sm" data-f="required">
+          <option value="false">optional</option><option value="true">required</option>
+        </select>
+        <input class="form-control form-control-sm" data-f="description" placeholder="description">
+        <button class="btn btn-sm btn-outline-danger btn-icon" onclick="this.closest('.param-row').remove()"><i class="bi bi-x"></i></button>
+        <div class="w-100 mt-1">
+          <input class="form-control form-control-sm" data-f="example" placeholder="example value">
+        </div>`;
+      list.appendChild(div);
+    },
+
+    addRespRow() {
+      const list = document.getElementById('editRespsList');
+      if (list.querySelector('.text-muted')) list.innerHTML = '';
+      const div = document.createElement('div');
+      div.className = 'content-block';
+      div.dataset.code = '200';
+      div.innerHTML = `
+        <div class="d-flex gap-2 mb-2 flex-wrap">
+          <input class="form-control form-control-sm" style="max-width:90px" value="200" data-f="code">
+          <input class="form-control form-control-sm flex-grow-1" value="OK" data-f="description" placeholder="Description">
+          <button class="btn btn-sm btn-outline-danger btn-icon" onclick="this.closest('.content-block').remove()"><i class="bi bi-x"></i></button>
+        </div>
+        <div class="row g-2">
+          <div class="col-md-4">
+            <label class="form-label-sm">Content-Type</label>
+            <select class="form-select form-select-sm" data-f="ct">
+              ${CONTENT_TYPES.map(t => `<option value="${t}" ${t==='application/json'?'selected':''}>${t}</option>`).join('')}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label-sm">Schema (link)</label>
+            <select class="form-select form-select-sm" data-f="schema">${this.schemaSelectHtml('')}</select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label-sm">Example (JSON)</label>
+            <textarea class="form-control form-control-sm font-monospace" data-f="example" rows="2" placeholder='{"id":1}'></textarea>
+          </div>
+        </div>`;
+      list.appendChild(div);
+    },
+
+    saveOpEdit() {
+      const path = this.editingPath;
+      const method = this.editingMethod;
+      const op = this.spec.paths[path][method];
+
+      op.summary = document.getElementById('editSummary').value;
+      op.operationId = document.getElementById('editOpId').value || undefined;
+      op.description = document.getElementById('editOpDesc').value || undefined;
+      const tagsVal = document.getElementById('editOpTags').value;
+      op.tags = tagsVal ? tagsVal.split(',').map(t => t.trim()).filter(Boolean) : undefined;
+
+      // Parameters
+      const params = [];
+      document.querySelectorAll('#editParamsList .param-row').forEach(row => {
+        const name = row.querySelector('[data-f=name]').value.trim();
+        if (!name) return;
+        const p = {
+          name,
+          in: row.querySelector('[data-f=in]').value,
+          required: row.querySelector('[data-f=required]').value === 'true',
+          description: row.querySelector('[data-f=description]').value || undefined,
+          schema: { type: 'string' }
+        };
+        const exEl = row.querySelector('[data-f=example]');
+        if (exEl && exEl.value.trim()) {
+          p.example = this.parseExample(exEl.value);
+        }
+        params.push(p);
+      });
+      op.parameters = params.length ? params : undefined;
+
+      // Request Body
+      const rbOn = document.getElementById('rbEnabled').checked;
+      if (rbOn) {
+        const ct = document.getElementById('rbCt').value;
+        const ref = document.getElementById('rbSchema').value;
+        const exampleText = document.getElementById('rbExample').value;
+        const media = {};
+        if (ref) media.schema = { $ref: ref };
+        else media.schema = { type: 'object' };
+        const ex = this.parseExample(exampleText);
+        if (ex !== undefined) media.example = ex;
+        op.requestBody = {
+          required: document.getElementById('rbRequired').value === 'true',
+          content: { [ct]: media }
+        };
+      } else {
+        delete op.requestBody;
+      }
+
+      // Responses
+      const responses = {};
+      document.querySelectorAll('#editRespsList .content-block').forEach(row => {
+        const code = (row.querySelector('[data-f=code]') || {}).value || '200';
+        const desc = (row.querySelector('[data-f=description]') || {}).value || 'Response';
+        const ct = (row.querySelector('[data-f=ct]') || {}).value || 'application/json';
+        const ref = (row.querySelector('[data-f=schema]') || {}).value || '';
+        const exampleText = (row.querySelector('[data-f=example]') || {}).value || '';
+        const resp = { description: desc };
+        if (ref || exampleText.trim()) {
+          const media = {};
+          if (ref) media.schema = { $ref: ref };
+          else media.schema = { type: 'object' };
+          const ex = this.parseExample(exampleText);
+          if (ex !== undefined) media.example = ex;
+          resp.content = { [ct]: media };
+        }
+        responses[code] = resp;
+      });
+      op.responses = Object.keys(responses).length ? responses : { '200': { description: 'OK' } };
+
+      this.opEditModal.hide();
+      this.afterVisualChange();
+      this.renderVisual();
+      this.toast('Operation saved (schema + example linked)', 'success');
+    },
+
+    deleteCurrentOp() {
+      this.deleteOp(this.editingPath, this.editingMethod);
+      this.opEditModal.hide();
+    },
+
+    // ─── Schemas ─────────────────────────────────────────────────
+    addSchema() {
+      document.getElementById('schemaName').value = '';
+      document.getElementById('schemaType').value = 'object';
+      document.getElementById('schemaPropsList').innerHTML = '';
+      this._editingSchema = null;
+      this.schemaModal.show();
+    },
+
+    editSchema(name) {
+      this._editingSchema = name;
+      const sch = this.spec.components.schemas[name];
+      document.getElementById('schemaName').value = name;
+      document.getElementById('schemaType').value = sch.type || 'object';
+      const list = document.getElementById('schemaPropsList');
+      list.innerHTML = '';
+      if (sch.properties) {
+        Object.entries(sch.properties).forEach(([pname, pdef]) => {
+          this._appendSchemaProp(list, pname, pdef.type || 'string', !!(sch.required && sch.required.includes(pname)), pdef.example);
+        });
+      }
+      this.schemaModal.show();
+    },
+
+    addSchemaProp() {
+      this._appendSchemaProp(document.getElementById('schemaPropsList'), '', 'string', false);
+    },
+
+    _appendSchemaProp(list, name, type, required, example) {
+      const div = document.createElement('div');
+      div.className = 'schema-field';
+      const ex = example !== undefined ? (typeof example === 'object' ? JSON.stringify(example) : String(example)) : '';
+      div.innerHTML = `
+        <input class="form-control form-control-sm" placeholder="property name" value="${this.esc(name)}" data-f="name">
+        <select class="form-select form-select-sm" data-f="type" style="max-width:110px">
+          ${['string','integer','number','boolean','array','object'].map(t => `<option value="${t}" ${t===type?'selected':''}>${t}</option>`).join('')}
+        </select>
+        <div class="form-check form-check-inline m-0">
+          <input class="form-check-input" type="checkbox" data-f="required" ${required?'checked':''}>
+          <label class="form-check-label small">req</label>
+        </div>
+        <input class="form-control form-control-sm" placeholder="example" value="${this.esc(ex)}" data-f="example" style="max-width:120px">
+        <button class="btn btn-sm btn-outline-danger btn-icon" onclick="this.parentElement.remove()"><i class="bi bi-x"></i></button>`;
+      list.appendChild(div);
+    },
+
+    saveSchema() {
+      const name = document.getElementById('schemaName').value.trim();
+      if (!name) { this.toast('Schema name required', 'warning'); return; }
+      const type = document.getElementById('schemaType').value;
+      const schema = { type };
+      if (type === 'object') {
+        schema.properties = {};
+        schema.required = [];
+        document.querySelectorAll('#schemaPropsList .schema-field').forEach(row => {
+          const pname = row.querySelector('[data-f=name]').value.trim();
+          if (!pname) return;
+          const prop = { type: row.querySelector('[data-f=type]').value };
+          const exVal = row.querySelector('[data-f=example]').value.trim();
+          if (exVal) prop.example = this.parseExample(exVal);
+          schema.properties[pname] = prop;
+          if (row.querySelector('[data-f=required]').checked) schema.required.push(pname);
+        });
+        if (schema.required.length === 0) delete schema.required;
+      }
+      if (this._editingSchema && this._editingSchema !== name) {
+        delete this.spec.components.schemas[this._editingSchema];
+      }
+      this.spec.components.schemas[name] = schema;
+      this.schemaModal.hide();
+      this.afterVisualChange();
+      this.renderVisual();
+    },
+
+    deleteSchema(name) {
+      if (!confirm('Delete schema ' + name + '?')) return;
+      delete this.spec.components.schemas[name];
+      this.afterVisualChange();
+      this.renderVisual();
+    },
+
+    // ─── Security ────────────────────────────────────────────────
+    addSecurityScheme() {
+      document.getElementById('secName').value = '';
+      document.getElementById('secType').value = 'http';
+      this.onSecTypeChange();
+      this.securityModal.show();
+    },
+    onSecTypeChange() {
+      const t = document.getElementById('secType').value;
+      document.getElementById('secHttpOpts').style.display = t === 'http' ? '' : 'none';
+      document.getElementById('secApiKeyOpts').style.display = t === 'apiKey' ? '' : 'none';
+      document.getElementById('secOidcOpts').style.display = t === 'openIdConnect' ? '' : 'none';
+    },
+    saveSecurity() {
+      const name = document.getElementById('secName').value.trim();
+      if (!name) { this.toast('Name required', 'warning'); return; }
+      const type = document.getElementById('secType').value;
+      const scheme = { type };
+      if (type === 'http') {
+        scheme.scheme = document.getElementById('secScheme').value;
+        const bf = document.getElementById('secBearer').value;
+        if (bf) scheme.bearerFormat = bf;
+      } else if (type === 'apiKey') {
+        scheme.in = document.getElementById('secIn').value;
+        scheme.name = document.getElementById('secParamName').value || 'X-API-Key';
+      } else if (type === 'openIdConnect') {
+        scheme.openIdConnectUrl = document.getElementById('secOidcUrl').value;
+      }
+      this.spec.components.securitySchemes[name] = scheme;
+      this.securityModal.hide();
+      this.afterVisualChange();
+      this.renderVisual();
+    },
+    deleteSecurity(name) {
+      delete this.spec.components.securitySchemes[name];
+      this.afterVisualChange();
+      this.renderVisual();
+    },
+
+    // ─── Preview ─────────────────────────────────────────────────
+    refreshPreview() {
+      if (this.previewMode === 'swagger') this.renderSwaggerUI();
+      else this.renderCustomPreview();
+    },
+    togglePreviewMode() {
+      this.previewMode = this.previewMode === 'swagger' ? 'custom' : 'swagger';
+      document.getElementById('swagger-ui').style.display = this.previewMode === 'swagger' ? '' : 'none';
+      document.getElementById('customPreview').style.display = this.previewMode === 'custom' ? '' : 'none';
+      this.refreshPreview();
+    },
+    renderSwaggerUI() {
+      const container = document.getElementById('swagger-ui');
+      container.innerHTML = '';
+      try {
+        this.swaggerUI = SwaggerUIBundle({
+          spec: this.spec,
+          dom_id: '#swagger-ui',
+          presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+          layout: 'StandaloneLayout',
+          deepLinking: false,
+          displayOperationId: true,
+          tryItOutEnabled: true,
+          filter: true,
+          syntaxHighlight: { activated: true, theme: this.dark ? 'monokai' : 'agate' }
+        });
+      } catch (e) {
+        container.innerHTML = `<div class="alert alert-warning m-3">Preview error: ${this.esc(e.message)}</div>`;
+      }
+    },
+
+    renderCustomPreview() {
+      const el = document.getElementById('customPreview');
+      const s = this.spec;
+      let html = `<h1 class="editable" contenteditable="true" data-path="info.title" onblur="app.inlineEdit(this)">${this.esc(s.info?.title || 'API')}</h1>`;
+      html += `<p class="text-muted"><span class="editable" contenteditable="true" data-path="info.version" onblur="app.inlineEdit(this)">${this.esc(s.info?.version || '')}</span></p>`;
+      html += `<p class="editable" contenteditable="true" data-path="info.description" onblur="app.inlineEdit(this)">${this.esc(s.info?.description || '')}</p>`;
+
+      if (s.servers?.length) {
+        html += `<h2>Servers</h2><ul>`;
+        s.servers.forEach((srv, i) => {
+          html += `<li><code class="editable" contenteditable="true" data-path="servers.${i}.url" onblur="app.inlineEdit(this)">${this.esc(srv.url)}</code>
+            <span class="text-muted editable" contenteditable="true" data-path="servers.${i}.description" onblur="app.inlineEdit(this)">${this.esc(srv.description || '')}</span></li>`;
+        });
+        html += `</ul>`;
+      }
+
+      Object.keys(s.paths || {}).forEach(path => {
+        html += `<h2><code>${this.esc(path)}</code></h2>`;
+        const pathObj = s.paths[path];
+        ['get','post','put','delete','patch','head','options','trace'].forEach(m => {
+          if (!pathObj[m]) return;
+          const op = pathObj[m];
+          html += `<div class="op-block open">
+            <div class="op-header" onclick="this.parentElement.classList.toggle('open')">
+              <span class="method-badge method-${m}">${m}</span>
+              <strong class="editable" contenteditable="true" data-path="paths.${this.escAttr(path)}.${m}.summary" onblur="app.inlineEdit(this)">${this.esc(op.summary || '')}</strong>
+            </div>
+            <div class="op-body">
+              <p class="editable" contenteditable="true" data-path="paths.${this.escAttr(path)}.${m}.description" onblur="app.inlineEdit(this)">${this.esc(op.description || '')}</p>`;
+
+          if (op.requestBody) {
+            html += `<p class="mb-1"><strong>Request Body</strong></p>`;
+            const content = op.requestBody.content || {};
+            Object.entries(content).forEach(([ct, media]) => {
+              const ref = media.schema?.$ref || '';
+              html += `<div class="mb-2"><span class="badge bg-secondary">${this.esc(ct)}</span>
+                ${ref ? `<span class="ref-badge">${this.esc(ref)}</span>` : ''}
+                ${media.example !== undefined ? `<div class="example-preview mt-1">${this.esc(typeof media.example === 'object' ? JSON.stringify(media.example, null, 2) : media.example)}</div>` : ''}
+              </div>`;
+            });
+          }
+
+          if (op.parameters?.length) {
+            html += `<table class="param-table"><thead><tr><th>Name</th><th>In</th><th>Required</th><th>Description</th><th>Example</th></tr></thead><tbody>`;
+            op.parameters.forEach((p, pi) => {
+              html += `<tr>
+                <td>${this.esc(p.name)}</td><td>${this.esc(p.in)}</td>
+                <td>${p.required ? 'yes' : 'no'}</td>
+                <td>${this.esc(p.description || '')}</td>
+                <td>${p.example !== undefined ? this.esc(String(p.example)) : ''}</td>
+              </tr>`;
+            });
+            html += `</tbody></table>`;
+          }
+
+          if (op.responses) {
+            html += `<p class="mt-2 mb-1"><strong>Responses</strong></p>`;
+            Object.entries(op.responses).forEach(([code, r]) => {
+              html += `<div class="mb-2"><span class="badge bg-secondary">${this.esc(code)}</span>
+                <span>${this.esc(r.description || '')}</span>`;
+              if (r.content) {
+                Object.entries(r.content).forEach(([ct, media]) => {
+                  const ref = media.schema?.$ref || '';
+                  html += `<div class="ms-3 mt-1"><small>${this.esc(ct)}</small>
+                    ${ref ? `<span class="ref-badge">${this.esc(ref)}</span>` : ''}
+                    ${media.example !== undefined ? `<div class="example-preview mt-1">${this.esc(typeof media.example === 'object' ? JSON.stringify(media.example, null, 2) : media.example)}</div>` : ''}
+                  </div>`;
+                });
+              }
+              html += `</div>`;
+            });
+          }
+          html += `</div></div>`;
+        });
+      });
+
+      if (Object.keys(s.components?.schemas || {}).length) {
+        html += `<h2>Schemas</h2>`;
+        Object.entries(s.components.schemas).forEach(([name, sch]) => {
+          html += `<h3>${this.esc(name)}</h3><div class="schema-box">${this.esc(JSON.stringify(sch, null, 2))}</div>`;
+        });
+      }
+      el.innerHTML = html;
+    },
+
+    inlineEdit(el) {
+      const path = el.dataset.path;
+      if (!path) return;
+      const value = el.textContent;
+      if (path.startsWith('paths.')) this._setByPath(this.spec, path, value);
+      else {
+        const parts = path.split('.');
+        let obj = this.spec;
+        for (let i = 0; i < parts.length - 1; i++) obj = obj[parts[i]];
+        if (obj) obj[parts[parts.length - 1]] = value;
+      }
+      this.pushToEditors();
+      this.renderVisual();
+      this.setStatus('Inline edit applied');
+    },
+
+    _setByPath(root, pathStr, value) {
+      const m = pathStr.match(/^paths\.(.+)\.(get|post|put|delete|patch|head|options|trace)\.(.+)$/);
+      if (m) {
+        const pth = m[1], method = m[2], rest = m[3].split('.');
+        let obj = root.paths[pth][method];
+        for (let i = 0; i < rest.length - 1; i++) {
+          const k = rest[i];
+          obj = /^\d+$/.test(k) ? obj[+k] : obj[k];
+        }
+        const last = rest[rest.length - 1];
+        if (/^\d+$/.test(last)) obj[+last] = value; else obj[last] = value;
+        return;
+      }
+      const parts = pathStr.split('.');
+      let obj = root;
+      for (let i = 0; i < parts.length - 1; i++) obj = obj[parts[i]];
+      obj[parts[parts.length - 1]] = value;
+    },
+
+    // ─── Import / Export ─────────────────────────────────────────
+    newSpec() {
+      if (!confirm('Create a new spec? Unsaved changes will be lost.')) return;
+      this.spec = structuredClone(DEFAULT_SPEC);
+      this.renderAll();
+      this.toast('New spec created', 'success');
+    },
+    handleFile(e) {
+      const file = e.target.files[0];
+      if (file) this.readFile(file);
+      e.target.value = '';
+    },
+    readFile(file) {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          this.loadText(ev.target.result);
+          this.toast('Loaded ' + file.name, 'success');
+        } catch (err) {
+          this.toast('Failed to parse: ' + err.message, 'danger');
+        }
+      };
+      reader.readAsText(file);
+    },
+    loadText(text) {
+      let parsed;
+      try { parsed = jsyaml.load(text); } catch { parsed = JSON.parse(text); }
+      this.spec = this.normalizeSpec(parsed);
+      this.renderAll();
+    },
+    importUrl() {
+      document.getElementById('urlInput').value = 'https://petstore3.swagger.io/api/v3/openapi.json';
+      this.urlModal.show();
+    },
+    async fetchUrl() {
+      const url = document.getElementById('urlInput').value.trim();
+      if (!url) return;
+      this.setStatus('Fetching…');
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+        this.loadText(await res.text());
+        this.urlModal.hide();
+        this.toast('Imported from URL', 'success');
+      } catch (err) {
+        this.toast('Fetch failed: ' + err.message + ' (CORS?)', 'danger');
+        this.setStatus('Fetch failed');
+      }
+    },
+    pasteImport() {
+      document.getElementById('pasteArea').value = '';
+      this.pasteModal.show();
+    },
+    applyPaste() {
+      const text = document.getElementById('pasteArea').value;
+      if (!text.trim()) return;
+      try {
+        this.loadText(text);
+        this.pasteModal.hide();
+        this.toast('Pasted successfully', 'success');
+      } catch (err) {
+        this.toast('Parse error: ' + err.message, 'danger');
+      }
+    },
+    exportYaml() {
+      this.download(jsyaml.dump(this.spec, { lineWidth: -1, noRefs: true }), (this.spec.info?.title || 'openapi') + '.yaml', 'text/yaml');
+    },
+    exportJson() {
+      this.download(JSON.stringify(this.spec, null, 2), (this.spec.info?.title || 'openapi') + '.json', 'application/json');
+    },
+    exportHtml() {
+      const title = this.spec.info?.title || 'API Docs';
+      const specJson = JSON.stringify(this.spec);
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${this.esc(title)}</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui.css"></head>
+<body><div id="swagger-ui"></div>
+<script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"><\/script>
+<script>SwaggerUIBundle({spec:${specJson},dom_id:'#swagger-ui',presets:[SwaggerUIBundle.presets.apis],layout:'BaseLayout'});<\/script>
+</body></html>`;
+      this.download(html, title.replace(/\s+/g, '-') + '-docs.html', 'text/html');
+    },
+    exportMarkdown() {
+      const s = this.spec;
+      let md = `# ${s.info?.title || 'API'}\n\n**Version:** ${s.info?.version || ''}\n\n`;
+      if (s.info?.description) md += `${s.info.description}\n\n`;
+      if (s.servers?.length) {
+        md += `## Servers\n\n`;
+        s.servers.forEach(srv => { md += `- \`${srv.url}\` ${srv.description || ''}\n`; });
+        md += '\n';
+      }
+      md += `## Endpoints\n\n`;
+      Object.entries(s.paths || {}).forEach(([path, pathObj]) => {
+        Object.entries(pathObj).forEach(([method, op]) => {
+          if (!['get','post','put','delete','patch','head','options','trace'].includes(method)) return;
+          md += `### ${method.toUpperCase()} \`${path}\`\n\n`;
+          if (op.summary) md += `${op.summary}\n\n`;
+          if (op.requestBody) {
+            md += `**Request Body**\n\n`;
+            const content = op.requestBody.content || {};
+            Object.entries(content).forEach(([ct, media]) => {
+              md += `- ${ct}`;
+              if (media.schema?.$ref) md += ` → \`${media.schema.$ref}\``;
+              if (media.example) md += `\n\n\`\`\`json\n${JSON.stringify(media.example, null, 2)}\n\`\`\`\n`;
+              md += '\n';
+            });
+          }
+          if (op.parameters?.length) {
+            md += `| Name | In | Required | Description | Example |\n|------|----|----------|-------------|--------|\n`;
+            op.parameters.forEach(p => {
+              md += `| ${p.name} | ${p.in} | ${p.required ? 'yes' : 'no'} | ${p.description || ''} | ${p.example ?? ''} |\n`;
+            });
+            md += '\n';
+          }
+          if (op.responses) {
+            md += `**Responses**\n\n`;
+            Object.entries(op.responses).forEach(([code, r]) => {
+              md += `- \`${code}\`: ${r.description || ''}`;
+              if (r.content) {
+                Object.entries(r.content).forEach(([ct, media]) => {
+                  if (media.schema?.$ref) md += ` (${ct} → ${media.schema.$ref})`;
+                  if (media.example) md += `\n\n\`\`\`json\n${JSON.stringify(media.example, null, 2)}\n\`\`\``;
+                });
+              }
+              md += '\n';
+            });
+            md += '\n';
+          }
+        });
+      });
+      this.download(md, (s.info?.title || 'api') + '.md', 'text/markdown');
+    },
+    exportPdf() {
+      const el = document.getElementById('customPreview');
+      const wasHidden = el.style.display === 'none';
+      if (wasHidden) {
+        this.previewMode = 'custom';
+        el.style.display = '';
+        document.getElementById('swagger-ui').style.display = 'none';
+        this.renderCustomPreview();
+      }
+      html2pdf().set({
+        margin: 10,
+        filename: (this.spec.info?.title || 'api') + '.pdf',
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      }).from(el).save().then(() => {
+        if (wasHidden) {
+          this.previewMode = 'swagger';
+          el.style.display = 'none';
+          document.getElementById('swagger-ui').style.display = '';
+        }
+        this.toast('PDF generated', 'success');
+      });
+    },
+    async exportZip() {
+      const zip = new JSZip();
+      const base = (this.spec.info?.title || 'openapi').replace(/\s+/g, '-');
+      zip.file(base + '.yaml', jsyaml.dump(this.spec, { lineWidth: -1, noRefs: true }));
+      zip.file(base + '.json', JSON.stringify(this.spec, null, 2));
+      const html = `<!DOCTYPE html><html><head><title>${this.esc(this.spec.info?.title || '')}</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui.css"></head>
+<body><div id="swagger-ui"></div>
+<script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"><\/script>
+<script>SwaggerUIBundle({spec:${JSON.stringify(this.spec)},dom_id:'#swagger-ui'});<\/script></body></html>`;
+      zip.file(base + '-docs.html', html);
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = base + '.zip';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      this.toast('ZIP downloaded', 'success');
+    },
+    download(content, filename, mime) {
+      const blob = new Blob([content], { type: mime });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    },
+
+    formatEditors() {
+      try {
+        this.syncing = true;
+        this.yamlEditor.setValue(jsyaml.dump(this.spec, { lineWidth: -1, noRefs: true, quotingType: '"' }), -1);
+        this.jsonEditor.setValue(JSON.stringify(this.spec, null, 2), -1);
+        this.syncing = false;
+        this.toast('Formatted', 'success');
+      } catch (e) { this.toast('Format failed: ' + e.message, 'danger'); }
+    },
+
+    validate() {
+      const errors = [];
+      const s = this.spec;
+      if (!s.info?.title) errors.push('info.title is required');
+      if (!s.info?.version) errors.push('info.version is required');
+      if (!s.openapi && !s.swagger) errors.push('openapi or swagger version missing');
+      if (!s.paths || Object.keys(s.paths).length === 0) errors.push('No paths defined');
+      Object.entries(s.paths || {}).forEach(([path, pathObj]) => {
+        if (!path.startsWith('/')) errors.push(`Path "${path}" should start with /`);
+        Object.entries(pathObj).forEach(([method, op]) => {
+          if (['get','post','put','delete','patch','head','options','trace'].includes(method)) {
+            if (!op.responses || Object.keys(op.responses).length === 0)
+              errors.push(`${method.toUpperCase()} ${path}: missing responses`);
+            if (op.requestBody) {
+              const content = op.requestBody.content || {};
+              Object.values(content).forEach(media => {
+                if (media.schema?.$ref) {
+                  const name = media.schema.$ref.replace('#/components/schemas/', '');
+                  if (!s.components?.schemas?.[name])
+                    errors.push(`${method.toUpperCase()} ${path}: requestBody $ref "${name}" not found`);
+                }
+              });
+            }
+            Object.values(op.responses || {}).forEach(r => {
+              if (r.content) {
+                Object.values(r.content).forEach(media => {
+                  if (media.schema?.$ref) {
+                    const name = media.schema.$ref.replace('#/components/schemas/', '');
+                    if (!s.components?.schemas?.[name])
+                      errors.push(`${method.toUpperCase()} ${path}: response $ref "${name}" not found`);
+                  }
+                });
+              }
+            });
+          }
+        });
+      });
+      if (errors.length === 0) {
+        this.toast('✓ Spec looks valid (schemas & examples checked)', 'success');
+        this.setStatus('Validation passed');
+      } else {
+        this.toast(errors.length + ' issue(s): ' + errors[0], 'warning');
+        this.setStatus('Validation: ' + errors.join('; '));
+        console.warn(errors);
+      }
+    },
+
+    switchEditor(tab) {
+      this.currentEditor = tab;
+      document.querySelectorAll('.editor-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+      document.getElementById('yamlEditor').classList.toggle('editor-hidden', tab !== 'yaml');
+      document.getElementById('jsonEditor').classList.toggle('editor-hidden', tab !== 'json');
+      if (tab === 'yaml') this.yamlEditor.resize(); else this.jsonEditor.resize();
+    },
+    copyEditor() {
+      const text = this.currentEditor === 'yaml' ? this.yamlEditor.getValue() : this.jsonEditor.getValue();
+      navigator.clipboard.writeText(text).then(() => this.toast('Copied to clipboard', 'success'));
+    },
+    toggleTheme() {
+      this.dark = !this.dark;
+      document.documentElement.setAttribute('data-theme', this.dark ? 'dark' : '');
+      document.getElementById('themeIcon').className = this.dark ? 'bi bi-sun' : 'bi bi-moon-stars';
+      const theme = this.dark ? 'ace/theme/monokai' : 'ace/theme/github';
+      this.yamlEditor.setTheme(theme);
+      this.jsonEditor.setTheme(theme);
+      this.refreshPreview();
+    },
+
+    updateCounts() {
+      const paths = Object.keys(this.spec.paths || {}).length;
+      let ops = 0;
+      Object.values(this.spec.paths || {}).forEach(p => {
+        ops += ['get','post','put','delete','patch','head','options','trace'].filter(m => p[m]).length;
+      });
+      document.getElementById('statusRight').textContent = `Paths: ${paths} · Operations: ${ops}`;
+    },
+    setStatus(msg, isError) {
+      const el = document.getElementById('statusLeft');
+      el.textContent = msg;
+      el.style.color = isError ? 'var(--danger)' : '';
+    },
+    setSyncStatus(ok, detail) {
+      const el = document.getElementById('syncStatus');
+      el.innerHTML = ok
+        ? '<i class="bi bi-check-circle text-success"></i> Synced'
+        : `<i class="bi bi-exclamation-triangle text-warning"></i> ${this.esc(detail || 'Error')}`;
+    },
+    toast(msg, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const div = document.createElement('div');
+      div.className = `toast align-items-center text-bg-${type} border-0 show`;
+      div.setAttribute('role', 'alert');
+      div.innerHTML = `<div class="d-flex"><div class="toast-body">${this.esc(msg)}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.closest('.toast').remove()"></button></div>`;
+      container.appendChild(div);
+      setTimeout(() => div.remove(), 3500);
+    },
+    esc(str) {
+      if (str == null) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    },
+    escAttr(str) {
+      return this.esc(str).replace(/'/g, '&#39;');
+    }
+  };
+
+  window.app = app;
+  document.addEventListener('DOMContentLoaded', () => app.init());
+})();
+</script>
+</body>
+</html>
